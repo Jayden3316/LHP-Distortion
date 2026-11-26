@@ -55,7 +55,10 @@ def load_causal_lm(
     """Load a causal LM and tokenizer in eval mode."""
     dev = torch.device(device)
     if dtype is None:
-        dtype = torch.float32 if dev.type == "cpu" else torch.bfloat16
+        if dev.type == "cpu":
+            dtype = torch.float32
+        else:
+            dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -122,10 +125,28 @@ def compute_completion_logprobs(
     out_logprobs = np.zeros(len(completions), dtype=np.float64)
     out_lengths = np.array(comp_lens, dtype=np.int64)
 
-    for start in range(0, len(completions), batch_size):
-        batch_seqs = full_seqs[start : start + batch_size]
-        batch_plens = prompt_lens[start : start + batch_size]
-        batch_clens = comp_lens[start : start + batch_size]
+    # Sort by sequence length before batching to minimize padding waste (huge VRAM win for 248K-vocab LLMs)
+    order = sorted(range(len(completions)), key=lambda idx: len(full_seqs[idx]))
+
+    # Low-VRAM path for standard CausalLM architectures (Qwen2/3/3.5, Llama, SmolLM2, Mistral):
+    # run backbone to get [B, L, H] hidden states, then project ONLY completion tokens in 64-token
+    # chunks via lm_head (~64 MB peak instead of multi-GB [B, L, vocab_size] logits + log_softmax).
+    base_model = getattr(model, "model", None)
+    lm_head = getattr(model, "lm_head", None)
+    cfg = getattr(model, "config", None)
+    can_chunk_lm_head = (
+        base_model is not None
+        and lm_head is not None
+        and getattr(cfg, "final_logit_softcapping", None) is None
+        and getattr(cfg, "logit_scale", None) in (None, 1.0)
+    )
+
+    tok_chunk = 64
+    for start in range(0, len(order), batch_size):
+        batch_orig_idxs = order[start : start + batch_size]
+        batch_seqs = [full_seqs[idx] for idx in batch_orig_idxs]
+        batch_plens = [prompt_lens[idx] for idx in batch_orig_idxs]
+        batch_clens = [comp_lens[idx] for idx in batch_orig_idxs]
 
         max_len = max(len(s) for s in batch_seqs)
         input_ids = torch.full((len(batch_seqs), max_len), pad_id, dtype=torch.long, device=dev)
@@ -135,27 +156,47 @@ def compute_completion_logprobs(
             input_ids[i, :L] = torch.tensor(seq, dtype=torch.long, device=dev)
             attention_mask[i, :L] = 1
 
-        logits = model(input_ids=input_ids, attention_mask=attention_mask).logits.float()
-        # logits[:, t, :] predicts input_ids[:, t + 1]
-        log_probs_all = F.log_softmax(logits[:, :-1, :], dim=-1)
-        targets = input_ids[:, 1:]
-        token_lp = log_probs_all.gather(dim=-1, index=targets.unsqueeze(-1)).squeeze(-1)
+        if can_chunk_lm_head:
+            base_out = base_model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+            hidden = base_out.last_hidden_state  # [B, L, H]
+            logits_raw = None
+        else:
+            out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+            logits_raw = out.logits  # [B, L, V]
+            hidden = None
 
-        for i, (p_len, c_len) in enumerate(zip(batch_plens, batch_clens)):
+        for i, (orig_idx, p_len, c_len) in enumerate(zip(batch_orig_idxs, batch_plens, batch_clens)):
             if c_len == 0:
                 val = 0.0
             else:
-                # Completion tokens sit at positions p_len .. p_len + c_len - 1 in input_ids,
-                # which correspond to indices (p_len - 1) .. (p_len + c_len - 2) in token_lp.
-                start_idx = max(0, p_len - 1)
-                end_idx = p_len + c_len - 1
                 if p_len == 0:
-                    # No prefix token to predict token 0; sum over tokens 1..c_len-1
-                    val = float(token_lp[i, 0 : max(0, c_len - 1)].sum().item())
+                    start_idx = 0
+                    end_idx = max(0, c_len - 1)
                 else:
-                    val = float(token_lp[i, start_idx:end_idx].sum().item())
+                    start_idx = p_len - 1
+                    end_idx = p_len + c_len - 1
+
+                if end_idx <= start_idx:
+                    val = 0.0
+                else:
+                    nll_sum = 0.0
+                    for c_start in range(start_idx, end_idx, tok_chunk):
+                        c_end = min(c_start + tok_chunk, end_idx)
+                        if can_chunk_lm_head:
+                            c_logits = lm_head(hidden[i, c_start:c_end, :]).float()
+                        else:
+                            c_logits = logits_raw[i, c_start:c_end, :].float()
+                        c_targets = input_ids[i, c_start + 1 : c_end + 1]
+                        nll_sum += float(F.cross_entropy(c_logits, c_targets, reduction="sum").item())
+                        del c_logits
+                    val = -nll_sum
                 if length_normalize and c_len > 0:
                     val /= float(c_len)
-            out_logprobs[start + i] = val
+            out_logprobs[orig_idx] = val
+
+        if can_chunk_lm_head:
+            del base_out, hidden, input_ids, attention_mask
+        else:
+            del out, logits_raw, input_ids, attention_mask
 
     return out_logprobs, out_lengths

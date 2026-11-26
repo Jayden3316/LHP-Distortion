@@ -73,7 +73,9 @@ def compute_or_load_ref_logprobs(
             print(f"Loaded cached pi_ref log-probs for {len(eval_prompt_indices)} prompts from {cache_path}")
             return raw_lps, lengths
 
-    print(f"Computing completion log-probs with {llm_name} on {len(eval_prompt_indices)} prompts (device={device})...")
+    print(f"Computing completion log-probs with {llm_name} on {len(eval_prompt_indices)} prompts (device={device}, batch_size={batch_size})...")
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
     t0 = time.perf_counter()
     model, tokenizer = load_causal_lm(llm_name, device=device)
 
@@ -614,7 +616,13 @@ def main() -> None:
         ds = load_turn1_dataset(args.csv, min_user_prefs_gt=args.min_user_prefs_gt)
         eval_prompt_indices = ds.prompts_with_min_users(args.eval_min_users)
         llm_name = args.llm or "Qwen/Qwen3.5-0.8B"
-        ref_bs = args.ref_batch_size or (16 if device.type == "cuda" else 4)
+        if args.ref_batch_size is not None:
+            ref_bs = args.ref_batch_size
+        elif device.type == "cuda":
+            total_gb = torch.cuda.get_device_properties(device).total_memory / (1024 ** 3)
+            ref_bs = 4 if total_gb <= 18.0 else 8
+        else:
+            ref_bs = 4
         ref_max_len = args.ref_max_length or 1024
         epochs = args.epochs or 120
         train_bs = args.batch_size
