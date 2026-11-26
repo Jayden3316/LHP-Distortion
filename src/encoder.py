@@ -7,7 +7,7 @@ from typing import Sequence
 
 import torch
 import torch.nn as nn
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from src.data import Turn1Dataset
 
@@ -53,10 +53,12 @@ class FrozenModernBERTEncoder(nn.Module):
 
         _ensure_torch_compile_compat()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # Disable ModernBERT's torch.compile by default: variable-length batches trigger
-        # Dynamo guard caches that creep VRAM and are unnecessary for frozen inference.
-        kwargs = {"reference_compile": False} if "modernbert" in model_name.lower() else {}
-        self.backbone = AutoModel.from_pretrained(model_name, **kwargs)
+        cfg = AutoConfig.from_pretrained(model_name)
+        # In transformers 4.x, ModernBertConfig exposes `reference_compile` (disable to avoid
+        # Dynamo guard cache VRAM creep on variable-length batches); removed in transformers 5.x.
+        if hasattr(cfg, "reference_compile"):
+            cfg.reference_compile = False
+        self.backbone = AutoModel.from_pretrained(model_name, config=cfg)
         self.backbone.to(self.device)
         self.backbone.eval()
         for param in self.backbone.parameters():
