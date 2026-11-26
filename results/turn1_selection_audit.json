@@ -1,0 +1,77 @@
+{
+  "num_users": 839,
+  "num_prompts": 8719,
+  "num_unique_xy": 45797,
+  "num_pairs": 79323,
+  "prompt_thresholds": {
+    "10": {
+      "num_prompts": 559,
+      "median_resps": 16.0,
+      "min_resps": 4,
+      "max_resps": 124,
+      "total_unique_xy": 11390,
+      "total_pairs": 53502
+    },
+    "15": {
+      "num_prompts": 553,
+      "median_resps": 16.0,
+      "min_resps": 4,
+      "max_resps": 124,
+      "total_unique_xy": 11331,
+      "total_pairs": 53278
+    },
+    "20": {
+      "num_prompts": 520,
+      "median_resps": 18.0,
+      "min_resps": 4,
+      "max_resps": 124,
+      "total_unique_xy": 10851,
+      "total_pairs": 51532
+    },
+    "25": {
+      "num_prompts": 457,
+      "median_resps": 20.0,
+      "min_resps": 4,
+      "max_resps": 124,
+      "total_unique_xy": 9792,
+      "total_pairs": 47298
+    },
+    "30": {
+      "num_prompts": 329,
+      "median_resps": 20.0,
+      "min_resps": 4,
+      "max_resps": 124,
+      "total_unique_xy": 7564,
+      "total_pairs": 36828
+    },
+    "40": {
+      "num_prompts": 24,
+      "median_resps": 64.5,
+      "min_resps": 16,
+      "max_resps": 124,
+      "total_unique_xy": 1500,
+      "total_pairs": 6061
+    },
+    "50": {
+      "num_prompts": 19,
+      "median_resps": 75.0,
+      "min_resps": 32,
+      "max_resps": 124,
+      "total_unique_xy": 1362,
+      "total_pairs": 5444
+    }
+  },
+  "m20_prompt_words": {
+    "mean": 16.853846153846153,
+    "median": 14.0,
+    "p95": 35.0,
+    "max": 52
+  },
+  "m20_response_words": {
+    "mean": 128.6566215095383,
+    "median": 111.0,
+    "p95": 203.0,
+    "p99": 246.5,
+    "max": 931
+  }
+}

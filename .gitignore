@@ -1,0 +1,6 @@
+data/
+*.pt
+phase3_local_test/
+phase4a_local_test/
+__pycache__/
+tests/
