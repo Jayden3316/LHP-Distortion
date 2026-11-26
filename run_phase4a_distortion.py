@@ -42,7 +42,12 @@ from src.ref_policy import (
     logprobs_to_probs,
     ref_policy_diagnostics,
 )
-from src.user_bt import LowRankUserBT, global_affine_normalize, unit_range_normalize_per_query
+from src.user_bt import (
+    LowRankUserBT,
+    global_affine_normalize,
+    per_query_normalize,
+    unit_range_normalize_per_query,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -441,7 +446,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--llm", type=str, default=None, help="HF causal LM for pi_ref.")
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--rank", type=int, default=None, help="UserBT rank to load (default: best from Phase 3).")
-    parser.add_argument("--norm-mode", choices=["unit-range", "global"], default="unit-range")
+    parser.add_argument("--norm-mode", choices=["per-query", "unit-range", "global"], default="per-query")
     parser.add_argument("--betas", type=float, nargs="+", default=[0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0])
     parser.add_argument("--tau-targets", type=float, nargs="+", default=[0.2, 0.5, 1.0, 2.0, 4.0])
     parser.add_argument("--num-lambdas", type=int, default=15)
@@ -508,7 +513,14 @@ def main() -> None:
     with torch.no_grad():
         raw_scores = user_bt.score_all_users(feats).numpy()
     _, beta_nat, _, _ = global_affine_normalize(raw_scores)
-    if args.norm_mode == "unit-range":
+    if args.norm_mode == "per-query":
+        u_norm, query_spans = per_query_normalize(raw_scores, ds.prompt_global_xy_indices)
+        eval_spans = query_spans[eval_prompt_indices]
+        print(
+            f"Per-query shared spans M(x) on eval prompts: "
+            f"min={eval_spans.min():.2f}, median={np.median(eval_spans):.2f}, max={eval_spans.max():.2f}"
+        )
+    elif args.norm_mode == "unit-range":
         u_norm = unit_range_normalize_per_query(raw_scores, ds.prompt_global_xy_indices)
     else:
         u_norm, _, _, _ = global_affine_normalize(raw_scores)

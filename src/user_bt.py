@@ -198,3 +198,50 @@ def unit_range_normalize_per_query(
         normed = np.where(span < 1e-12, 0.5, (sub - s_min) / safe_span)
         out[:, g_idxs] = np.clip(normed, 0.0, 1.0)
     return out
+
+
+def per_query_normalize(
+    scores: np.ndarray,
+    prompt_global_xy_indices: list[list[int]],
+) -> tuple[np.ndarray, np.ndarray]:
+    """BT-preserving per-query normalization into [0, 1].
+
+    For each query x with candidate pool A(x):
+      1. Remove each user's unidentifiable additive shift: d_i(y | x) = s_i(x, y) - min_{y' in A(x)} s_i(x, y').
+      2. Divide ALL users on query x by a single shared query span:
+             M(x) = max_{j in [N]} (max_{y' in A(x)} s_j(x, y') - min_{y' in A(x)} s_j(x, y')).
+      3. Set u_tilde_i(y | x) = d_i(y | x) / M(x) in [0, 1] (0.5 if M(x) == 0).
+
+    Properties:
+      - Preserves EVERY user's within-query BT probabilities identically under one shared
+        query-level temperature beta_BT(x) = M(x):
+            sigma(s_i(x, y1) - s_i(x, y2)) == sigma(M(x) * (u_tilde_i(y1|x) - u_tilde_i(y2|x))).
+      - Preserves relative preference intensities across users (indifferent users keep small
+        utility span; passionate users span up to 1.0), unlike per-user unit-range scaling.
+      - Isolates each query from cross-query outlier scales.
+
+    Returns:
+      (u_norm [num_users, num_unique_xy], query_spans [num_prompts]).
+    """
+    arr = np.asarray(scores, dtype=np.float64)
+    if arr.ndim != 2 or arr.size == 0:
+        raise ValueError("scores must be a non-empty 2D [num_users, num_unique_xy] array.")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("scores must be finite.")
+
+    out = np.full_like(arr, 0.5, dtype=np.float64)
+    query_spans = np.zeros(len(prompt_global_xy_indices), dtype=np.float64)
+
+    for p_idx, g_idxs in enumerate(prompt_global_xy_indices):
+        if not g_idxs:
+            continue
+        sub = arr[:, g_idxs]  # [N, |A(x)|]
+        s_min = np.min(sub, axis=1, keepdims=True)
+        shifted = sub - s_min  # >= 0, removes unidentifiable per-user-per-query constant c_i(x)
+        max_span = float(np.max(shifted))
+        query_spans[p_idx] = max_span
+        if max_span < 1e-12:
+            out[:, g_idxs] = 0.5
+        else:
+            out[:, g_idxs] = np.clip(shifted / max_span, 0.0, 1.0)
+    return out, query_spans
