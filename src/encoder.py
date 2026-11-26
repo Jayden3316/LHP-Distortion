@@ -53,7 +53,9 @@ class FrozenModernBERTEncoder(nn.Module):
 
         _ensure_torch_compile_compat()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        kwargs = {"reference_compile": False} if "modernbert" in model_name.lower() and self.device.type == "cpu" else {}
+        # Disable ModernBERT's torch.compile by default: variable-length batches trigger
+        # Dynamo guard caches that creep VRAM and are unnecessary for frozen inference.
+        kwargs = {"reference_compile": False} if "modernbert" in model_name.lower() else {}
         self.backbone = AutoModel.from_pretrained(model_name, **kwargs)
         self.backbone.to(self.device)
         self.backbone.eval()
@@ -70,7 +72,8 @@ class FrozenModernBERTEncoder(nn.Module):
 
     def _pool(self, last_hidden_state: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         if self.pooling == "cls":
-            return last_hidden_state[:, 0, :]
+            # .clone() detaches from the full [B, L, H] storage so unused token states can be freed immediately!
+            return last_hidden_state[:, 0, :].contiguous().clone()
         mask = attention_mask.unsqueeze(-1).to(last_hidden_state.dtype)
         denom = mask.sum(dim=1).clamp(min=1.0)
         return (last_hidden_state * mask).sum(dim=1) / denom
@@ -81,17 +84,31 @@ class FrozenModernBERTEncoder(nn.Module):
         prompts: Sequence[str],
         responses: Sequence[str],
         batch_size: int = 32,
+        output_device: str | torch.device | None = None,
+        show_progress: bool = False,
     ) -> torch.Tensor:
-        """Encode `(prompt, response)` text pairs into frozen `[N, hidden_size]` features."""
+        """Encode `(prompt, response)` text pairs into frozen `[N, hidden_size]` features.
+
+        Args:
+            output_device: Where to accumulate batch outputs (defaults to `self.device`;
+                set to `"cpu"` when encoding large datasets to keep GPU VRAM flat).
+        """
         if len(prompts) != len(responses):
             raise ValueError("prompts and responses must have identical length.")
+        target_dev = torch.device(output_device) if output_device is not None else self.device
         if len(prompts) == 0:
-            return torch.empty((0, self.hidden_size), dtype=torch.float32, device=self.device)
+            return torch.empty((0, self.hidden_size), dtype=torch.float32, device=target_dev)
 
         self.backbone.eval()
         outputs: list[torch.Tensor] = []
-        use_bf16 = self.device.type == "cuda"
-        for start in range(0, len(prompts), batch_size):
+
+        # Pick native CUDA autocast dtype: bf16 on Ampere+ (A100/H100), fp16 on Turing/Volta (T4/V100)
+        amp_dtype: torch.dtype | None = None
+        if self.device.type == "cuda":
+            amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+
+        n_total = len(prompts)
+        for batch_i, start in enumerate(range(0, n_total, batch_size), start=1):
             batch_p = [str(x) for x in prompts[start : start + batch_size]]
             batch_r = [str(y) for y in responses[start : start + batch_size]]
             enc = self.tokenizer(
@@ -102,14 +119,21 @@ class FrozenModernBERTEncoder(nn.Module):
                 max_length=self.max_length,
                 return_tensors="pt",
             )
-            enc = {k: v.to(self.device) for k, v in enc.items()}
-            if use_bf16:
-                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            enc = {k: v.to(self.device, non_blocking=True) for k, v in enc.items()}
+            if amp_dtype is not None:
+                with torch.autocast(device_type="cuda", dtype=amp_dtype):
                     out = self.backbone(**enc)
             else:
                 out = self.backbone(**enc)
-            pooled = self._pool(out.last_hidden_state, enc["attention_mask"])
-            outputs.append(pooled.float())
+
+            pooled = self._pool(out.last_hidden_state, enc["attention_mask"]).float()
+            outputs.append(pooled.to(target_dev))
+            del enc, out, pooled
+
+            if show_progress and (batch_i % 50 == 0 or start + batch_size >= n_total):
+                done = min(start + batch_size, n_total)
+                print(f"  Encoded {done:,}/{n_total:,} unique (x, y) pairs...", flush=True)
+
         return torch.cat(outputs, dim=0)
 
     def forward(self, prompts: Sequence[str], responses: Sequence[str]) -> torch.Tensor:
@@ -131,7 +155,14 @@ class FrozenModernBERTEncoder(nn.Module):
 
         prompts = [ds.prompts[p_idx] for p_idx, _ in ds.unique_xy]
         responses = [ds.prompt_responses[p_idx][r_idx] for p_idx, r_idx in ds.unique_xy]
-        feats = self.encode_pairs(prompts, responses, batch_size=batch_size).cpu()
+        # Accumulate outputs directly on CPU so GPU VRAM stays constant across all batches
+        feats = self.encode_pairs(
+            prompts,
+            responses,
+            batch_size=batch_size,
+            output_device="cpu",
+            show_progress=ds.num_unique_xy >= 1000,
+        )
 
         if cache_path is not None:
             p = Path(cache_path)
