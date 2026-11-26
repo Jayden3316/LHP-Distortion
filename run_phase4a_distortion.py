@@ -240,34 +240,33 @@ def plot_distortion_vs_beta(
     save_path: Path,
     title: str,
 ) -> Path:
-    """Two-panel Distortion vs. beta_BT figure comparing empirical scaling to Theorem 6.
+    """Two-panel Distortion vs. beta_BT figure with tau-dependent Theorem 6 curves.
 
-    Left panel:  Exact fixed KL-budget curves (tau in tau_targets), showing worst-case (max)
-                 and median distortion across queries as a function of beta_BT vs. Theorem 6.
-    Right panel: Per-query scatter from lambda-regularized policies (where tau varies across
-                 queries and beta_BT, mirroring DPO), colored continuously by realized tau(x).
+    Left panel:  Exact fixed KL-budget curves (one color per tau). Solid + markers = empirical
+                 worst-case (max across queries; queries need not match across beta_BT).
+                 Dashed (same color) = exact Theorem 6 curve dist_Thm6(tau; beta_BT) for that tau.
+    Right panel: Per-query scatter from lambda-regularized policies (DPO-style view), colored
+                 continuously by realized tau(x), overlaid with tau-specific Theorem 6 curves.
     """
     plt.style.use("seaborn-v0_8-whitegrid")
-    fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.2), dpi=160)
+    fig, axes = plt.subplots(1, 2, figsize=(15.0, 5.4), dpi=160)
 
     betas_sorted = sorted(fixed_tau_df["beta_bt"].unique())
     beta_grid = np.linspace(max(0.1, min(betas_sorted)), max(betas_sorted), 200)
-    thm6_peak = np.array([theorem6_peak_distortion(float(b)) for b in beta_grid])
 
-    # --- Panel 1: Exact fixed-tau curves vs. beta_BT ---
+    # --- Panel 1: Exact fixed-tau empirical max + tau-matched Theorem 6 curves ---
     ax = axes[0]
     tau_targets = sorted(fixed_tau_df["tau_target"].unique())
     cmap = plt.get_cmap("viridis")
-    colors = [cmap(v) for v in np.linspace(0.12, 0.90, len(tau_targets))]
+    colors = [cmap(v) for v in np.linspace(0.10, 0.90, len(tau_targets))]
 
+    plotted_saturated_thm6 = False
+    ln2 = float(np.log(2.0))
     for color, t_val in zip(colors, tau_targets):
         sub = fixed_tau_df[fixed_tau_df["tau_target"] == t_val]
         agg = (
             sub.groupby("beta_bt")["distortion"]
-            .agg(
-                max_d=lambda s: float(np.max(s[np.isfinite(s)])),
-                med_d=lambda s: float(np.median(s[np.isfinite(s)])),
-            )
+            .agg(max_d=lambda s: float(np.max(s[np.isfinite(s)])))
             .reset_index()
             .sort_values("beta_bt")
         )
@@ -280,41 +279,51 @@ def plot_distortion_vs_beta(
             color=color,
             label=rf"Empirical max ($\tau={t_val:g}$)",
         )
-        ax.plot(
-            agg["beta_bt"],
-            agg["med_d"],
-            linestyle="--",
-            linewidth=1.2,
-            alpha=0.65,
-            color=color,
-        )
 
-    ax.plot(
-        beta_grid,
-        thm6_peak,
-        color="#dc2626",
-        linewidth=2.3,
-        label=r"Theorem 6 worst-case: $\sinh(\beta)/\beta$",
-    )
+        # Exact Theorem 6 curve at THIS tau: for tau < ln 2 it is strictly below sinh(beta)/beta!
+        th_vals = np.array([theorem6_distortion_curve(np.array([t_val]), float(b))[0] for b in beta_grid])
+        if t_val < ln2 - 1e-6:
+            ax.plot(
+                beta_grid,
+                th_vals,
+                linestyle="--",
+                linewidth=1.8,
+                color=color,
+                label=rf"Theorem 6 ($\tau={t_val:g}$)",
+            )
+        elif not plotted_saturated_thm6:
+            ax.plot(
+                beta_grid,
+                th_vals,
+                linestyle="--",
+                linewidth=2.2,
+                color="#dc2626",
+                label=r"Theorem 6 ($\tau \geq \ln 2$: $\sinh(\beta)/\beta$)",
+            )
+            plotted_saturated_thm6 = True
+
     ax.axhline(1.0, color="#94a3b8", linestyle=":", linewidth=1.1)
     ax.set_yscale("log")
     ax.set_xlabel(r"Bradley–Terry inverse temperature $\beta_{\mathrm{BT}}$", fontsize=10.5)
     ax.set_ylabel("Distortion (log scale)", fontsize=10.5)
-    ax.set_title("Fixed KL Budget: Worst-Case (solid) & Median (dashed)", fontweight="bold")
-    ax.legend(fontsize=8, frameon=True, loc="upper left")
+    ax.set_title(r"Fixed KL Budget: Empirical Max (solid) vs. Theorem 6 at Same $\tau$ (dashed)", fontweight="bold")
+    ax.legend(fontsize=7.8, frameon=True, loc="upper left", ncol=2)
 
-    # --- Panel 2: Per-query scatter colored by realized tau(x) (DPO-style view) ---
+    # --- Panel 2: Per-query scatter colored by realized tau(x) + tau-matched Theorem 6 curves ---
     ax = axes[1]
     resamp = lam_sweep_df[lam_sweep_df["is_resampled"]].copy()
     finite = resamp[np.isfinite(resamp["distortion"]) & (resamp["tau"] > 1e-6)]
     rng = np.random.default_rng(0)
     x_jitter = finite["beta_bt"].to_numpy(dtype=np.float64) + rng.uniform(-0.14, 0.14, size=len(finite))
 
+    tau_max_cbar = max(float(finite["tau"].max()) if len(finite) > 0 else 1.0, 1.0)
+    norm = plt.Normalize(vmin=0.0, vmax=tau_max_cbar)
     sc = ax.scatter(
         x_jitter,
         finite["distortion"],
         c=finite["tau"],
         cmap="viridis",
+        norm=norm,
         s=18,
         alpha=0.70,
         edgecolors="none",
@@ -322,19 +331,21 @@ def plot_distortion_vs_beta(
     cbar = fig.colorbar(sc, ax=ax, pad=0.02)
     cbar.set_label(r"Realized KL radius $\tau(x) = D_{\mathrm{KL}}(\pi_\lambda \| \pi_{\mathrm{ref}})$", fontsize=9.5)
 
-    ax.plot(
-        beta_grid,
-        thm6_peak,
-        color="#dc2626",
-        linewidth=2.3,
-        label=r"Theorem 6 worst-case: $\sinh(\beta)/\beta$",
-    )
+    # Overlay Theorem 6 curves at representative tau values using matching colorbar colors
+    for t_ref, lbl, col in [
+        (0.2, r"Theorem 6 ($\tau=0.2$)", cmap(norm(0.2))),
+        (0.5, r"Theorem 6 ($\tau=0.5$)", cmap(norm(0.5))),
+        (ln2, r"Theorem 6 ($\tau \geq \ln 2$: $\sinh(\beta)/\beta$)", "#dc2626"),
+    ]:
+        th_vals = np.array([theorem6_distortion_curve(np.array([t_ref]), float(b))[0] for b in beta_grid])
+        ax.plot(beta_grid, th_vals, linestyle="--", linewidth=2.0, color=col, label=lbl)
+
     ax.axhline(1.0, color="#94a3b8", linestyle=":", linewidth=1.1)
     ax.set_yscale("log")
     ax.set_xlabel(r"Bradley–Terry inverse temperature $\beta_{\mathrm{BT}}$ (jittered)", fontsize=10.5)
     ax.set_ylabel("Distortion (log scale)", fontsize=10.5)
     ax.set_title(r"$\lambda$-Regularized Policies: Per-Query Points Colored by Realized $\tau(x)$", fontweight="bold")
-    ax.legend(fontsize=8.5, frameon=True, loc="upper left")
+    ax.legend(fontsize=8.2, frameon=True, loc="upper left")
 
     fig.suptitle(title, fontsize=12.5, fontweight="bold", y=1.02)
     plt.tight_layout()
@@ -342,6 +353,113 @@ def plot_distortion_vs_beta(
     fig.savefig(save_path, bbox_inches="tight")
     plt.close(fig)
     return save_path
+
+
+def inspect_top_distortion_queries(
+    ds: Turn1Dataset,
+    u_norm: np.ndarray,
+    pi_refs: dict[int, np.ndarray],
+    lengths: dict[int, np.ndarray],
+    r_all_by_beta: dict[float, np.ndarray],
+    lam_df: pd.DataFrame,
+    out_txt_path: Path,
+    top_k: int = 3,
+    target_beta: float | None = None,
+) -> str:
+    """Inspect top-K highest-distortion queries qualitatively: prompt, user utility stats, pi_ref, pi_RLHF, pi*."""
+    sub = lam_df[lam_df["is_resampled"] & np.isfinite(lam_df["distortion"]) & (lam_df["tau"] > 1e-6)].copy()
+    if target_beta is not None and (sub["beta_bt"] == target_beta).any():
+        sub = sub[sub["beta_bt"] == target_beta]
+
+    # Pick top-K distinct prompts by their peak empirical distortion
+    best_per_prompt = (
+        sub.sort_values("distortion", ascending=False)
+        .drop_duplicates(subset=["prompt_idx"])
+        .head(top_k)
+    )
+
+    lines: list[str] = []
+    header_beta = f"beta_BT={target_beta:g}" if target_beta is not None else "all resampled beta_BT"
+    lines.append(f"=== Qualitative Inspection: Top-{len(best_per_prompt)} Highest-Distortion Queries ({header_beta}) ===")
+
+    for rank_i, (_, row) in enumerate(best_per_prompt.iterrows(), start=1):
+        p_idx = int(row["prompt_idx"])
+        beta_val = float(row["beta_bt"])
+        lam_val = float(row["lam"])
+        tau_val = float(row["tau"])
+        dist_val = float(row["distortion"])
+
+        g_idxs = ds.prompt_global_xy_indices[p_idx]
+        U_p = u_norm[:, g_idxs]  # [N_users, |A(x)|]
+        avg_u = np.mean(U_p, axis=0)
+        std_u = np.std(U_p, axis=0)
+        top1_users = np.argmax(U_p, axis=1)
+        top1_share = np.bincount(top1_users, minlength=len(g_idxs)) / float(U_p.shape[0])
+
+        p0 = pi_refs[p_idx]
+        comp_lens = lengths[p_idx]
+        r_p = r_all_by_beta[beta_val][g_idxs]
+        pi_lam = gibbs_policy(r_p, p0, lam=lam_val)
+        pi_star, opt_util = solve_kl_ball_max_util(avg_u, p0, tau=tau_val)
+        pol_util = float(np.dot(pi_lam, avg_u))
+
+        diag = ref_policy_diagnostics(p0)
+        lines.append("")
+        lines.append("-" * 96)
+        lines.append(
+            f"[Case #{rank_i}] prompt_idx={p_idx} | beta_BT={beta_val:g}, lam={lam_val:.4g}, "
+            f"tau={tau_val:.3f} nats | distortion={dist_val:.3f} (opt_util={opt_util:.3f} vs policy_util={pol_util:.3f})"
+        )
+        lines.append(f"Prompt ({len(ds.prompt_annotators[p_idx])} annotators, |A(x)|={len(g_idxs)} candidates):")
+        lines.append(f"  {ds.prompts[p_idx]}")
+        lines.append(
+            f"User Utility Stats across {U_p.shape[0]} users: "
+            f"AvgUtil range=[{avg_u.min():.3f}, {avg_u.max():.3f}] (ceiling={avg_u.max()/max(avg_u.min(),1e-12):.2f}), "
+            f"mean cross-user std={std_u.mean():.3f}, distinct top-1 responses={int(np.sum(top1_share > 0))}/{len(g_idxs)}"
+        )
+        lines.append(
+            f"pi_ref Stats: norm_entropy={diag['normalized_entropy']:.3f}, "
+            f"max_prob={diag['max_prob']:.4f}, min_prob={diag['min_prob']:.4f}, "
+            f"effective_support={diag['effective_support']:.1f}/{len(g_idxs)}"
+        )
+
+        # Highlight key candidates: top by pi* (social-welfare opt), top by pi_RLHF (mythical choice), top by pi_ref
+        idx_star = int(np.argmax(pi_star))
+        idx_rlhf = int(np.argmax(pi_lam))
+        idx_ref = int(np.argmax(p0))
+        idx_avg = int(np.argmax(avg_u))
+
+        highlight_order: list[tuple[int, list[str]]] = []
+        seen: dict[int, list[str]] = {}
+        for idx_c, tag in [
+            (idx_star, "TOP pi* (KL-ball opt)"),
+            (idx_avg, "MAX AvgUtil"),
+            (idx_rlhf, "TOP pi_RLHF (mythical)"),
+            (idx_ref, "TOP pi_ref"),
+        ]:
+            if idx_c not in seen:
+                seen[idx_c] = [tag]
+                highlight_order.append((idx_c, seen[idx_c]))
+            else:
+                seen[idx_c].append(tag)
+
+        lines.append("Key Candidate Responses:")
+        for c_idx, tags in highlight_order:
+            text_clean = ds.prompt_responses[p_idx][c_idx].replace("\n", " ").strip()
+            if len(text_clean) > 260:
+                text_clean = text_clean[:260] + "..."
+            lines.append(
+                f"  * cand#{c_idx:<3} [{', '.join(tags)}]\n"
+                f"      AvgUtil={avg_u[c_idx]:.3f} (user_std={std_u[c_idx]:.3f}, user_top1={100*top1_share[c_idx]:.1f}%) | "
+                f"r_MLE={r_p[c_idx]:+.3f} | len={int(comp_lens[c_idx])} tok\n"
+                f"      pi_ref={p0[c_idx]:.4f}  ->  pi_RLHF={pi_lam[c_idx]:.4f}  vs  pi*={pi_star[c_idx]:.4f}\n"
+                f"      Text: {text_clean}"
+            )
+
+    report_text = "\n".join(lines) + "\n"
+    out_txt_path.parent.mkdir(parents=True, exist_ok=True)
+    out_txt_path.write_text(report_text, encoding="utf-8")
+    return report_text
 
 
 def evaluate_distortion_grid(
@@ -360,7 +478,7 @@ def evaluate_distortion_grid(
     batch_size: int,
     seed: int,
     device: torch.device,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[float, np.ndarray]]:
     """Evaluate empirical KL-constrained distortion under BOTH exact fixed-tau budgets and lambda sweeps."""
     avg_utils: dict[int, np.ndarray] = {
         p_idx: np.mean(u_norm[:, ds.prompt_global_xy_indices[p_idx]], axis=0)
@@ -383,6 +501,7 @@ def evaluate_distortion_grid(
 
     lam_records = []
     tau_records = []
+    r_all_by_beta: dict[float, np.ndarray] = {}
     for panel_order, panel_label, beta_val, is_resampled, pairs_b in settings:
         myth_model, _ = fit_mythical_bt(
             feats,
@@ -396,6 +515,8 @@ def evaluate_distortion_grid(
         )
         with torch.no_grad():
             r_all = myth_model.score(feats.to(device)).cpu().numpy().astype(np.float64)
+        if is_resampled:
+            r_all_by_beta[beta_val] = r_all
 
         for p_idx in eval_prompt_indices:
             g_idxs = ds.prompt_global_xy_indices[p_idx]
@@ -434,7 +555,7 @@ def evaluate_distortion_grid(
                         **res,
                     }
                 )
-    return pd.DataFrame(tau_records), pd.DataFrame(lam_records)
+    return pd.DataFrame(tau_records), pd.DataFrame(lam_records), r_all_by_beta
 
 
 def parse_args() -> argparse.Namespace:
@@ -448,7 +569,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rank", type=int, default=None, help="UserBT rank to load (default: best from Phase 3).")
     parser.add_argument("--norm-mode", choices=["per-query", "unit-range", "global"], default="per-query")
     parser.add_argument("--betas", type=float, nargs="+", default=[0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0])
+    parser.add_argument("--tau-plot-betas", type=float, nargs="+", default=[1.0, 2.0, 5.0, 10.0])
     parser.add_argument("--tau-targets", type=float, nargs="+", default=[0.2, 0.5, 1.0, 2.0, 4.0])
+    parser.add_argument("--top-k-inspect", type=int, default=3)
     parser.add_argument("--num-lambdas", type=int, default=15)
     parser.add_argument("--lam-min", type=float, default=0.02)
     parser.add_argument("--lam-max", type=float, default=20.0)
@@ -561,7 +684,7 @@ def main() -> None:
             f"median_max_prob={diag_df['max_prob'].median():.3f}, collapsed={n_collapsed}/{len(diag_df)} ---"
         )
 
-        tau_df, lam_df = evaluate_distortion_grid(
+        tau_df, lam_df, r_all_by_beta = evaluate_distortion_grid(
             ds=ds,
             feats=feats,
             u_norm=u_norm,
@@ -601,6 +724,8 @@ def main() -> None:
         ref_title = f"LLM={llm_name}" if ref_mode != "uniform" else "Uniform pi_ref"
         if ref_mode == "llm_len_norm":
             ref_title += " (length-normalized)"
+
+        # Plot 1: Distortion vs. beta_BT (with tau-matched Theorem 6 curves)
         beta_plot_path = plot_distortion_vs_beta(
             fixed_tau_df=tau_df,
             lam_sweep_df=lam_df,
@@ -608,6 +733,31 @@ def main() -> None:
             title=f"Phase 4A: Empirical Distortion vs. beta_BT ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
         )
         print(f"Saved distortion-vs-beta plot to: {beta_plot_path}")
+
+        # Plot 2: Faceted Distortion vs. tau across representative beta_BT panels
+        tau_plot_mask = (~lam_df["is_resampled"]) | (lam_df["beta_bt"].isin(args.tau_plot_betas))
+        tau_plot_path = plot_phase4a_scatter(
+            df=lam_df[tau_plot_mask],
+            save_path=out_dir / f"phase4a_distortion_vs_tau_{suffix}.png",
+            title=f"Phase 4A: Empirical Distortion vs. tau ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
+        )
+        print(f"Saved distortion-vs-tau plot to : {tau_plot_path}")
+
+        # Qualitative inspection of top-K highest-distortion queries
+        top_txt_path = out_dir / f"top_distortion_cases_{suffix}.txt"
+        report_text = inspect_top_distortion_queries(
+            ds=ds,
+            u_norm=u_norm,
+            pi_refs=pi_refs,
+            lengths=lengths,
+            r_all_by_beta=r_all_by_beta,
+            lam_df=lam_df,
+            out_txt_path=top_txt_path,
+            top_k=args.top_k_inspect,
+        )
+        print(f"Saved qualitative cases to      : {top_txt_path}")
+        if ref_mode in ("llm_len_norm", "llm") and args.top_k_inspect > 0:
+            print(report_text)
 
     pd.concat(all_diag_dfs, ignore_index=True).to_csv(out_dir / "pi_ref_diagnostics.csv", index=False)
     print(f"\nPhase 4A completed in {time.perf_counter() - t0:.1f}s")

@@ -59,7 +59,10 @@ def load_causal_lm(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+    try:
+        model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype)
+    except TypeError:
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
     model.to(dev)
     model.eval()
     return model, tokenizer

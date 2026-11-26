@@ -1,0 +1,24 @@
+{
+  "mode": "local-test",
+  "dpo_model": "HuggingFaceTB/SmolLM2-135M",
+  "ref_model": null,
+  "user_bt_rank": 32,
+  "n_high_queries": 3,
+  "n_low_queries": 3,
+  "k_generations": 2,
+  "pca_explained_variance_ratio": [
+    0.3819,
+    0.2384
+  ],
+  "centroid_shifts": {
+    "high_distortion": {
+      "l2_centroid_shift_user_space": 11.8805,
+      "l2_centroid_shift_2d_pca": 9.1006
+    },
+    "low_distortion": {
+      "l2_centroid_shift_user_space": 11.4745,
+      "l2_centroid_shift_2d_pca": 10.8061
+    }
+  },
+  "elapsed_seconds": 120.79
+}

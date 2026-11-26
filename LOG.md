@@ -108,3 +108,4 @@ All test modules live under `tests/` and run locally on CPU:
 
 ### Deferred (After Phase 4A Analysis)
 - **Phase 4B — DPO Finetuning**: Train $\pi_{\mathrm{DPO}}$ with `trl.DPOTrainer` (local smoke test with `SmolLM2-135M`; cloud multi-seed runs on `Qwen/Qwen3.5-0.8B`, then 4B scale-up) and compare empirical DPO distortion against Phase 4A and Theorem 6.
+- **Qualitative User-Space PCA Evaluation (`run_qualitative_pca.py`)**: Ready — selects top-10 highest & top-10 lowest distortion queries, projects all dataset candidate responses through frozen `ModernBERT-base` + trained linear head $W$ into 2D PCA space (colored by query distortion), generates $k$ completions from the DPO-trained LM (and optional base/ref LM), and projects them onto the exact same principal components to visualize before-vs-after DPO distributional shift. Verified locally with `tests/test_qualitative_pca.py` and `--mode local-test`.
