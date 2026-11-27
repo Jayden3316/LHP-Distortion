@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import inspect
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from datasets import Dataset
 from peft import LoraConfig
 from trl import DPOConfig, DPOTrainer
+from trl.trainer.dpo_trainer import DataCollatorForPreference
 
 from src.data import Turn1Dataset
 from src.distortion import compute_distortion
@@ -29,31 +32,155 @@ def build_dpo_preference_dataset(
     pairs: Sequence[tuple[int, int, int, int]],
     max_pairs: int | None = None,
     seed: int = 42,
+    soft_probs: Sequence[float] | None = None,
 ) -> Dataset:
     """Convert `(user_idx, prompt_idx, win_xy, lose_xy)` tuples into a TRL DPO Dataset.
 
-    Returns a HuggingFace `Dataset` with standard TRL columns: `prompt`, `chosen`, `rejected`.
+    Returns a HuggingFace `Dataset` with standard TRL columns: `prompt`, `chosen`, `rejected`
+    (plus optional `soft_prob` in `(0, 1)` when `soft_probs` is supplied for soft-label DPO).
     """
     if len(pairs) == 0:
         raise ValueError("pairs must be non-empty.")
+    if soft_probs is not None and len(soft_probs) != len(pairs):
+        raise ValueError("soft_probs must have the same length as pairs.")
 
-    pair_list = list(pairs)
-    if max_pairs is not None and len(pair_list) > max_pairs:
+    idxs = np.arange(len(pairs), dtype=np.int64)
+    if max_pairs is not None and len(pairs) > max_pairs:
         rng = np.random.default_rng(seed)
-        chosen_idxs = rng.choice(len(pair_list), size=max_pairs, replace=False)
-        pair_list = [pair_list[int(i)] for i in chosen_idxs]
+        idxs = rng.choice(len(pairs), size=max_pairs, replace=False)
 
     prompts: list[str] = []
     chosens: list[str] = []
     rejecteds: list[str] = []
-    for _u_idx, p_idx, win_xy, lose_xy in pair_list:
+    probs_out: list[float] = []
+    for i in idxs:
+        _u_idx, _p_idx, win_xy, lose_xy = pairs[int(i)]
         p_txt, chosen_txt = ds.get_xy_text(int(win_xy))
         _, rejected_txt = ds.get_xy_text(int(lose_xy))
         prompts.append(p_txt)
         chosens.append(chosen_txt)
         rejecteds.append(rejected_txt)
+        if soft_probs is not None:
+            probs_out.append(float(soft_probs[int(i)]))
 
-    return Dataset.from_dict({"prompt": prompts, "chosen": chosens, "rejected": rejecteds})
+    data: dict[str, list] = {"prompt": prompts, "chosen": chosens, "rejected": rejecteds}
+    if soft_probs is not None:
+        data["soft_prob"] = probs_out
+    return Dataset.from_dict(data)
+
+
+def build_soft_dpo_preference_dataset(
+    ds: Turn1Dataset,
+    pairs: Sequence[tuple[int, int, int, int]],
+    u_norm: np.ndarray,
+    beta_bt: float,
+    max_pairs: int | None = None,
+    seed: int = 42,
+) -> Dataset:
+    """Build a soft-label TRL DPO Dataset with exact target p_{iab} = sigma(beta_bt * du).
+
+    Eliminates 1-shot Bernoulli coin-flip noise at low/moderate beta_BT by passing the exact
+    population probability `soft_prob` into `SoftLabelDPOTrainer`.
+    """
+    if beta_bt < 0:
+        raise ValueError("beta_bt must be non-negative.")
+    u_arr = np.asarray(u_norm, dtype=np.float64)
+    u_idxs = np.array([p[0] for p in pairs], dtype=np.int64)
+    a_idxs = np.array([p[2] for p in pairs], dtype=np.int64)
+    b_idxs = np.array([p[3] for p in pairs], dtype=np.int64)
+    du = beta_bt * (u_arr[u_idxs, a_idxs] - u_arr[u_idxs, b_idxs])
+    p_soft = np.where(
+        du >= 0,
+        1.0 / (1.0 + np.exp(-np.clip(du, -500.0, 500.0))),
+        np.exp(np.clip(du, -500.0, 500.0)) / (1.0 + np.exp(np.clip(du, -500.0, 500.0))),
+    )
+    return build_dpo_preference_dataset(
+        ds=ds,
+        pairs=pairs,
+        max_pairs=max_pairs,
+        seed=seed,
+        soft_probs=p_soft.tolist(),
+    )
+
+
+@dataclass
+class SoftLabelDataCollator(DataCollatorForPreference):
+    """Extends TRL's `DataCollatorForPreference` to preserve per-example `soft_prob` targets."""
+
+    def torch_call(self, examples: list[dict[str, Any]]) -> dict[str, Any]:
+        output = super().torch_call(examples)
+        if examples and "soft_prob" in examples[0]:
+            output["soft_prob"] = torch.tensor(
+                [float(ex["soft_prob"]) for ex in examples], dtype=torch.float32
+            )
+        return output
+
+
+class SoftLabelDPOTrainer(DPOTrainer):
+    """DPOTrainer subclass implementing exact expected soft-label DPO loss:
+
+        L(z; p) = -p * log sigmoid(z) - (1 - p) * log sigmoid(-z),
+        where z = beta * [(log pi(y_a|x) - log pi_ref(y_a|x)) - (log pi(y_b|x) - log pi_ref(y_b|x))].
+
+    When `soft_prob` is absent from a batch, falls back directly to standard `DPOTrainer._compute_loss`.
+    """
+
+    def _compute_loss(self, model, inputs, return_outputs=False):
+        if "soft_prob" not in inputs:
+            return super()._compute_loss(model, inputs, return_outputs=return_outputs)
+
+        mode = "train" if self.model.training else "eval"
+        soft_prob = inputs["soft_prob"]
+        _non_model_keys = {"completion_mask", "ref_chosen_logps", "ref_rejected_logps", "soft_prob"}
+        model_kwargs = {k: v for k, v in inputs.items() if k not in _non_model_keys}
+        model_kwargs["use_cache"] = False
+
+        completion_mask = inputs["completion_mask"]
+        shift_completion_mask = completion_mask[..., 1:]
+        labels = inputs["input_ids"].masked_fill(completion_mask == 0, -100)
+        seq_len = shift_completion_mask.size(1)
+
+        outputs = model(**model_kwargs, labels=labels, fused_lm_head=True)
+        per_token_logps = outputs.log_probs[:, -seq_len:]
+        logps = per_token_logps.sum(dim=1)
+        chosen_logps, rejected_logps = logps.chunk(2, dim=0)
+
+        if self.precompute_ref_logps and "ref_chosen_logps" in inputs:
+            ref_chosen_logps = inputs["ref_chosen_logps"]
+            ref_rejected_logps = inputs["ref_rejected_logps"]
+        else:
+            ref_model_kwargs = {k: v for k, v in model_kwargs.items() if k != "output_router_logits"}
+            with torch.no_grad():
+                if self.ref_model is None and hasattr(self.accelerator.unwrap_model(self.model), "disable_adapter"):
+                    unwrapped = self.accelerator.unwrap_model(self.model)
+                    with unwrapped.disable_adapter():
+                        ref_outputs = self.model(**ref_model_kwargs, labels=labels, fused_lm_head=True)
+                elif self.ref_model is not None:
+                    ref_outputs = self.ref_model(**ref_model_kwargs, labels=labels, fused_lm_head=True)
+                else:
+                    raise RuntimeError("SoftLabelDPOTrainer requires either PEFT adapters or an explicit ref_model.")
+            ref_logps = ref_outputs.log_probs[:, -seq_len:].sum(dim=1)
+            ref_chosen_logps, ref_rejected_logps = ref_logps.chunk(2, dim=0)
+
+        chosen_logratios = chosen_logps - ref_chosen_logps
+        rejected_logratios = rejected_logps - ref_rejected_logps
+        logits = self.beta * (chosen_logratios - rejected_logratios)
+        p = soft_prob.to(device=logits.device, dtype=logits.dtype)
+        per_sequence_loss = -p * F.logsigmoid(logits) - (1.0 - p) * F.logsigmoid(-logits)
+        loss = per_sequence_loss.mean()
+
+        if hasattr(self, "_metrics") and mode in self._metrics:
+            chosen_rewards = self.beta * chosen_logratios.detach()
+            rejected_rewards = self.beta * rejected_logratios.detach()
+            self._metrics[mode]["rewards/chosen"].append(self.accelerator.gather(chosen_rewards).mean().item())
+            self._metrics[mode]["rewards/rejected"].append(self.accelerator.gather(rejected_rewards).mean().item())
+            self._metrics[mode]["rewards/margins"].append(
+                self.accelerator.gather(chosen_rewards - rejected_rewards).mean().item()
+            )
+            self._metrics[mode]["logps/chosen"].append(self.accelerator.gather(chosen_logps.detach()).mean().item())
+            self._metrics[mode]["logps/rejected"].append(self.accelerator.gather(rejected_logps.detach()).mean().item())
+
+        return (loss, outputs) if return_outputs else loss
 
 
 def infer_lora_target_modules(model: torch.nn.Module) -> list[str]:
@@ -190,7 +317,15 @@ def train_dpo_model(
     if peft_config is not None and "peft_config" in trainer_sig:
         trainer_kwargs["peft_config"] = peft_config
 
-    trainer = DPOTrainer(**trainer_kwargs)
+    use_soft_labels = "soft_prob" in getattr(train_dataset, "column_names", [])
+    trainer_cls = SoftLabelDPOTrainer if use_soft_labels else DPOTrainer
+    if use_soft_labels:
+        trainer_kwargs["data_collator"] = SoftLabelDataCollator(
+            pad_token_id=int(tokenizer.pad_token_id),
+            max_length=int(max_length),
+        )
+
+    trainer = trainer_cls(**trainer_kwargs)
     train_result = trainer.train()
     trained_model = trainer.model
     trained_model.eval()

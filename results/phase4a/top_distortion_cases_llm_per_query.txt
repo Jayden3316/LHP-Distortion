@@ -1,0 +1,61 @@
+=== Qualitative Inspection: Top-3 Highest-Distortion Queries (all resampled beta_BT) ===
+
+------------------------------------------------------------------------------------------------
+[Case #1] prompt_idx=3996 | beta_BT=1, lam=0.02, tau=47.568 nats | distortion=5.706 (opt_util=0.180 vs policy_util=0.032)
+Prompt (22 annotators, |A(x)|=4 candidates):
+  I'm planning a reunion and want to set a realistic timeline and budget for the event.
+User Utility Stats across 839 users: AvgUtil range=[0.031, 0.265] (ceiling=8.50), mean cross-user std=0.104, distinct top-1 responses=4/4
+pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/4
+Key Candidate Responses:
+  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.131 (user_std=0.091, user_top1=15.0%) | r_MLE=+0.841 | len=103 tok
+      pi_ref=1.0000  ->  pi_RLHF=0.0045  vs  pi*=0.6315
+      Text: Establishing a realistic timeline and budget for the reunion requires careful planning. Start by setting a date and creating a guest list to determine the venue and catering needs. Allocate 6-12 months for planning, with milestones for venue booking, entertain...
+  * cand#3   [MAX AvgUtil]
+      AvgUtil=0.265 (user_std=0.180, user_top1=72.2%) | r_MLE=+2.781 | len=276 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.3685
+      Text: To set a realistic timeline and budget, consider the following steps:  1. **Define the event scope**: Determine the type of reunion, number of guests, and preferred date. 2. **Set a budget range**: Estimate costs for venue, food, entertainment, and other expen...
+  * cand#2   [TOP pi_RLHF (mythical)]
+      AvgUtil=0.031 (user_std=0.067, user_top1=6.9%) | r_MLE=+1.906 | len=106 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.9955  vs  pi*=0.0000
+      Text: The key to a successful reunion is flexibility and open communication. Rather than focusing solely on budget and timeline, consider the overall experience and what will make the event meaningful for attendees. Set a rough outline of activities and amenities, t...
+
+------------------------------------------------------------------------------------------------
+[Case #2] prompt_idx=3394 | beta_BT=0.5, lam=0.02, tau=48.570 nats | distortion=5.143 (opt_util=0.211 vs policy_util=0.041)
+Prompt (35 annotators, |A(x)|=8 candidates):
+  I want to create a home maintenance schedule and set reminders for regular tasks.
+User Utility Stats across 839 users: AvgUtil range=[0.041, 0.277] (ceiling=6.79), mean cross-user std=0.146, distinct top-1 responses=8/8
+pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/8
+Key Candidate Responses:
+  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.191 (user_std=0.133, user_top1=15.7%) | r_MLE=-1.030 | len=77 tok
+      pi_ref=1.0000  ->  pi_RLHF=0.0016  vs  pi*=0.7639
+      Text: Create a schedule with monthly, quarterly, and annual tasks. Set reminders for:  * Monthly: Check smoke detectors, clean air filters, inspect plumbing * Quarterly: Inspect HVAC, clean gutters, check roof for damage * Annually: Inspect electrical systems, servi...
+  * cand#6   [MAX AvgUtil]
+      AvgUtil=0.277 (user_std=0.188, user_top1=17.9%) | r_MLE=-0.274 | len=265 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.0000
+      Text: Creating a home maintenance schedule is a great way to stay on top of regular tasks and prevent potential issues. Here's a suggested schedule to get you started:  **Monthly Tasks:**  * Check and replace air filters * Inspect and clean gutters and downspouts * ...
+  * cand#7   [TOP pi_RLHF (mythical)]
+      AvgUtil=0.041 (user_std=0.087, user_top1=4.4%) | r_MLE=+0.072 | len=119 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.9984  vs  pi*=0.0000
+      Text: Prioritizing sustainability and environmental responsibility, a home maintenance schedule should focus on energy efficiency and waste reduction. Begin by conducting an energy audit to identify areas of improvement, such as sealing air leaks or upgrading to ene...
+
+------------------------------------------------------------------------------------------------
+[Case #3] prompt_idx=5066 | beta_BT=1, lam=0.02, tau=23.019 nats | distortion=4.613 (opt_util=0.301 vs policy_util=0.065)
+Prompt (30 annotators, |A(x)|=16 candidates):
+  Plan a 7-day trip to the Swiss Alps for skiing and relaxation.
+User Utility Stats across 839 users: AvgUtil range=[0.065, 0.316] (ceiling=4.84), mean cross-user std=0.138, distinct top-1 responses=16/16
+pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/16
+Key Candidate Responses:
+  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.299 (user_std=0.187, user_top1=26.6%) | r_MLE=+0.584 | len=117 tok
+      pi_ref=1.0000  ->  pi_RLHF=0.0000  vs  pi*=0.8810
+      Text: Day 1-2: Arrive in Zurich, transfer to Interlaken. Ski at Jungfraujoch or Grindelwald.  Day 3-4: Move to Zermatt, ski at Matterhorn or Rothorn. Enjoy scenic village views.  Day 5: Relax at a spa in Zermatt or take a scenic train ride to Gornergrat.  Day 6-7: S...
+  * cand#8   [MAX AvgUtil]
+      AvgUtil=0.316 (user_std=0.149, user_top1=11.8%) | r_MLE=+2.186 | len=245 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.1190
+      Text: For a 7-day trip to the Swiss Alps, consider the following itinerary:  Day 1-2: Arrive in Interlaken and check into a hotel. Spend the first day exploring the town and getting accustomed to the altitude. On the second day, head to the nearby Jungfraujoch, also...
+  * cand#12  [TOP pi_RLHF (mythical)]
+      AvgUtil=0.065 (user_std=0.103, user_top1=3.8%) | r_MLE=+1.740 | len=127 tok
+      pi_ref=0.0000  ->  pi_RLHF=1.0000  vs  pi*=0.0000
+      Text: Sustainability should be at the forefront of any travel plan, especially when visiting sensitive ecosystems like the Swiss Alps. Consider offsetting your carbon footprint by choosing eco-friendly accommodations, such as hotels powered by renewable energy or lo...

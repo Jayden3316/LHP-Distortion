@@ -40,6 +40,7 @@ from src.data import Turn1Dataset, load_turn1_dataset
 from src.distortion import theorem6_distortion_curve
 from src.dpo import (
     build_dpo_preference_dataset,
+    build_soft_dpo_preference_dataset,
     evaluate_dpo_policy_distortion,
     score_policy_on_eval_prompts,
     train_dpo_model,
@@ -214,6 +215,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--betas", type=float, nargs="+", default=None, help="Resampled beta_BT panels (e.g. 1.0 2.0 4.0 8.0).")
     parser.add_argument("--only-observed", action="store_true", help="Train DPO ONLY on real observed preferences (skip resampled beta_BT).")
     parser.add_argument("--skip-observed", action="store_true", help="Skip real observed preferences and run only --betas resampled panels.")
+    parser.add_argument("--soft-labels", action="store_true", help="For resampled beta_BT panels, use exact soft-label DPO loss (zero coin-flip noise) instead of 1-shot Bernoulli flips.")
 
     # DPO training hyperparameters (trl.DPOTrainer)
     parser.add_argument("--dpo-betas", type=float, nargs="+", default=None, help="DPO KL penalty values (trl DPOConfig.beta).")
@@ -342,22 +344,32 @@ def main() -> None:
 
     for panel_lbl, beta_bt_val, is_resamp in panel_specs:
         for seed in seeds:
-            if is_resamp:
-                pairs_for_run = resample_preferences(
+            if is_resamp and args.soft_labels:
+                train_ds = build_soft_dpo_preference_dataset(
+                    ds=ds,
                     pairs=ds.pairs,
                     u_norm=u_norm,
                     beta_bt=beta_bt_val,
+                    max_pairs=max_train_pairs,
                     seed=seed,
                 )
             else:
-                pairs_for_run = ds.pairs
+                if is_resamp:
+                    pairs_for_run = resample_preferences(
+                        pairs=ds.pairs,
+                        u_norm=u_norm,
+                        beta_bt=beta_bt_val,
+                        seed=seed,
+                    )
+                else:
+                    pairs_for_run = ds.pairs
 
-            train_ds = build_dpo_preference_dataset(
-                ds=ds,
-                pairs=pairs_for_run,
-                max_pairs=max_train_pairs,
-                seed=seed,
-            )
+                train_ds = build_dpo_preference_dataset(
+                    ds=ds,
+                    pairs=pairs_for_run,
+                    max_pairs=max_train_pairs,
+                    seed=seed,
+                )
 
             for dpo_beta in dpo_betas:
                 tag = f"{'resamp_b' + str(beta_bt_val) if is_resamp else 'obs'}_dpob{dpo_beta}_s{seed}".replace(".", "p")

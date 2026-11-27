@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.optimize import minimize
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from src.user_bt import BTTrainHistory, bt_pairwise_loss
 
@@ -74,6 +76,127 @@ def fit_mythical_bt(
 
     model.eval()
     return model, BTTrainHistory(losses=losses, accuracies=accs)
+
+
+def fit_mythical_bt_soft(
+    features_xy: torch.Tensor,
+    pairs: list[tuple[int, int, int, int]],
+    u_norm: np.ndarray,
+    beta_bt: float,
+    lr: float = 1e-2,
+    weight_decay: float = 1e-3,
+    epochs: int = 100,
+    batch_size: int = 1024,
+    seed: int = 42,
+    device: str | torch.device = "cpu",
+) -> tuple[MythicalUserBT, BTTrainHistory]:
+    """Fit shared MythicalUserBT against exact soft BT probabilities p_{iab} = sigma(beta_bt * du).
+
+    Mathematically equals the exact expectation of `fit_mythical_bt` over infinitely many
+    Bernoulli resamples on `pairs`, eliminating finite-sample coin-flip variance while
+    preserving parametric linear-head function-approximation error.
+    """
+    if beta_bt < 0:
+        raise ValueError("beta_bt must be non-negative.")
+    torch.manual_seed(seed)
+    dev = torch.device(device)
+    feats = features_xy.to(dev, dtype=torch.float32)
+    model = MythicalUserBT(hidden_dim=int(feats.shape[1])).to(dev)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    u_arr = np.asarray(u_norm, dtype=np.float64)
+    u_idxs = np.array([p[0] for p in pairs], dtype=np.int64)
+    a_idxs = np.array([p[2] for p in pairs], dtype=np.int64)
+    b_idxs = np.array([p[3] for p in pairs], dtype=np.int64)
+    du = beta_bt * (u_arr[u_idxs, a_idxs] - u_arr[u_idxs, b_idxs])
+    p_soft_np = np.where(
+        du >= 0,
+        1.0 / (1.0 + np.exp(-np.clip(du, -500.0, 500.0))),
+        np.exp(np.clip(du, -500.0, 500.0)) / (1.0 + np.exp(np.clip(du, -500.0, 500.0))),
+    )
+
+    pos_t = torch.tensor(a_idxs, dtype=torch.long, device=dev)
+    neg_t = torch.tensor(b_idxs, dtype=torch.long, device=dev)
+    p_soft_t = torch.tensor(p_soft_np, dtype=torch.float32, device=dev)
+    n_pairs = len(pairs)
+
+    losses: list[float] = []
+    accs: list[float] = []
+    model.train()
+    for _ in range(epochs):
+        perm = torch.randperm(n_pairs, device=dev)
+        total_loss = 0.0
+        total_agree = 0.0
+        for start in range(0, n_pairs, batch_size):
+            idx = perm[start : start + batch_size]
+            optimizer.zero_grad()
+            margins = model.forward_pairs(feats[pos_t[idx]], feats[neg_t[idx]])
+            p_batch = p_soft_t[idx]
+            loss = F.binary_cross_entropy_with_logits(margins, p_batch)
+            loss.backward()
+            optimizer.step()
+
+            bs = int(idx.numel())
+            total_loss += float(loss.item()) * bs
+            # Expected pairwise accuracy against soft targets
+            pred_pos = (margins.detach() > 0).float()
+            total_agree += float((pred_pos * p_batch + (1.0 - pred_pos) * (1.0 - p_batch)).sum().item())
+
+        losses.append(total_loss / n_pairs)
+        accs.append(total_agree / n_pairs)
+
+    model.eval()
+    return model, BTTrainHistory(losses=losses, accuracies=accs)
+
+
+def exact_population_query_bt_mle(
+    u_query: np.ndarray,
+    beta_bt: float,
+) -> np.ndarray:
+    """Solve exact tabular population BT-MLE for a single query x over its candidates A(x).
+
+    Given user utility matrix `u_query` of shape `[num_users, num_candidates]`, computes
+    exact population pairwise win probabilities:
+        P[a, b] = mean_i sigmoid(beta_bt * (u_query[i, a] - u_query[i, b]))
+    and minimizes -sum_{a, b} P[a, b] log sigmoid(r_a - r_b) over unrestricted r in R^m.
+
+    Zero finite-sample noise and zero function-approximation error — isolates pure
+    social-choice aggregation distortion (exact Theorem 6 setting).
+    """
+    U = np.asarray(u_query, dtype=np.float64)
+    if U.ndim != 2 or U.shape[0] == 0 or U.shape[1] == 0:
+        raise ValueError("u_query must be a non-empty 2D array [num_users, num_candidates].")
+    if beta_bt < 0:
+        raise ValueError("beta_bt must be non-negative.")
+    m = U.shape[1]
+    if m == 1 or beta_bt == 0.0:
+        return np.zeros(m, dtype=np.float64)
+
+    diff = beta_bt * (U[:, :, None] - U[:, None, :])  # [N, m, m]
+    P = np.where(
+        diff >= 0,
+        1.0 / (1.0 + np.exp(-np.clip(diff, -500.0, 500.0))),
+        np.exp(np.clip(diff, -500.0, 500.0)) / (1.0 + np.exp(np.clip(diff, -500.0, 500.0))),
+    ).mean(axis=0)  # [m, m]
+
+    def loss_and_grad(r: np.ndarray) -> tuple[float, np.ndarray]:
+        dr = r[:, None] - r[None, :]
+        sp = np.logaddexp(0.0, -dr)
+        # Tiny mean-centering term fixes the additive shift Gauge freedom without biasing differences
+        r_sum = float(np.sum(r))
+        loss = float(np.sum(P * sp)) + 1e-8 * (r_sum ** 2)
+        sig_neg = np.where(
+            dr >= 0,
+            np.exp(-np.clip(dr, -500.0, 500.0)) / (1.0 + np.exp(-np.clip(dr, -500.0, 500.0))),
+            1.0 / (1.0 + np.exp(np.clip(dr, -500.0, 500.0))),
+        )
+        M = P * sig_neg
+        grad = -M.sum(axis=1) + M.sum(axis=0) + 2e-8 * r_sum
+        return loss, grad
+
+    res = minimize(loss_and_grad, np.zeros(m, dtype=np.float64), jac=True, method="BFGS", options={"gtol": 1e-7})
+    r_opt = res.x - float(np.mean(res.x))
+    return r_opt
 
 
 def resample_preferences(

@@ -35,7 +35,13 @@ from src.distortion import (
     theorem6_distortion_curve,
     theorem6_peak_distortion,
 )
-from src.mythical_bt import fit_mythical_bt, gibbs_policy, resample_preferences
+from src.mythical_bt import (
+    exact_population_query_bt_mle,
+    fit_mythical_bt,
+    fit_mythical_bt_soft,
+    gibbs_policy,
+    resample_preferences,
+)
 from src.ref_policy import (
     compute_completion_logprobs,
     load_causal_lm,
@@ -560,6 +566,151 @@ def evaluate_distortion_grid(
     return pd.DataFrame(tau_records), pd.DataFrame(lam_records), r_all_by_beta
 
 
+def evaluate_three_way_decomposition(
+    ds: Turn1Dataset,
+    feats: torch.Tensor,
+    u_norm: np.ndarray,
+    eval_prompt_indices: list[int],
+    pi_refs: dict[int, np.ndarray],
+    betas_resample: list[float],
+    lambdas: np.ndarray,
+    myth_wd: float,
+    lr: float,
+    epochs: int,
+    batch_size: int,
+    seed: int,
+    device: torch.device,
+) -> pd.DataFrame:
+    """Compare ExactTab vs. SoftLin vs. HardLin distortion across beta_BT on the same eval prompts.
+
+    Cleanly separates:
+      - `ExactTab`: exact tabular per-query population BT-MLE (pure social-choice distortion, Thm 6)
+      - `SoftLin`:  768-dim linear MythicalUserBT trained on exact soft probabilities p_{iab} (adds feature misspecification)
+      - `HardLin`:  768-dim linear MythicalUserBT trained on 1-shot hard Bernoulli flips (adds finite-sample label noise)
+    """
+    avg_utils: dict[int, np.ndarray] = {
+        p_idx: np.mean(u_norm[:, ds.prompt_global_xy_indices[p_idx]], axis=0)
+        for p_idx in eval_prompt_indices
+    }
+
+    rows: list[dict] = []
+    for idx_b, beta_bt in enumerate(betas_resample, start=1):
+        # 1. SoftLin: exact expected soft-label cross-entropy
+        soft_model, _ = fit_mythical_bt_soft(
+            feats,
+            ds.pairs,
+            u_norm=u_norm,
+            beta_bt=float(beta_bt),
+            lr=lr,
+            weight_decay=myth_wd,
+            epochs=epochs,
+            batch_size=batch_size,
+            seed=seed,
+            device=device,
+        )
+        with torch.no_grad():
+            r_soft_all = soft_model.score(feats.to(device)).cpu().numpy().astype(np.float64)
+
+        # 2. HardLin: 1-shot hard Bernoulli resampled labels
+        pairs_b = resample_preferences(u_norm, ds.pairs, beta_bt=float(beta_bt), seed=seed + idx_b)
+        hard_model, _ = fit_mythical_bt(
+            feats,
+            pairs_b,
+            lr=lr,
+            weight_decay=myth_wd,
+            epochs=epochs,
+            batch_size=batch_size,
+            seed=seed,
+            device=device,
+        )
+        with torch.no_grad():
+            r_hard_all = hard_model.score(feats.to(device)).cpu().numpy().astype(np.float64)
+
+        # 3. Evaluate max-over-lambda distortion per prompt for ExactTab, SoftLin, and HardLin
+        for p_idx in eval_prompt_indices:
+            g_idxs = ds.prompt_global_xy_indices[p_idx]
+            au = avg_utils[p_idx]
+            p0 = pi_refs[p_idx]
+            r_tab = exact_population_query_bt_mle(u_norm[:, g_idxs], beta_bt=float(beta_bt))
+            for est_name, r_vec in [
+                ("ExactTab", r_tab),
+                ("SoftLin", r_soft_all[g_idxs]),
+                ("HardLin", r_hard_all[g_idxs]),
+            ]:
+                best_d = 1.0
+                best_tau = 0.0
+                for lam in lambdas:
+                    res = compute_distortion(au, gibbs_policy(r_vec, p0, lam=float(lam)), p0)
+                    if np.isfinite(res["distortion"]) and res["distortion"] > best_d:
+                        best_d = float(res["distortion"])
+                        best_tau = float(res["tau"])
+                rows.append(
+                    {
+                        "beta_bt": float(beta_bt),
+                        "estimator": est_name,
+                        "prompt_idx": int(p_idx),
+                        "max_distortion": best_d,
+                        "tau_at_max": best_tau,
+                    }
+                )
+    return pd.DataFrame(rows)
+
+
+def plot_three_way_decomposition(
+    decomp_df: pd.DataFrame,
+    save_path: Path,
+    title: str,
+) -> Path:
+    """Two-panel plot separating ExactTab (social choice) vs. SoftLin (misspecification) vs. HardLin (label noise)."""
+    plt.style.use("seaborn-v0_8-whitegrid")
+    fig, axes = plt.subplots(1, 2, figsize=(15.0, 5.4), dpi=160)
+
+    betas_sorted = sorted(decomp_df["beta_bt"].unique())
+    beta_grid = np.linspace(max(0.1, min(betas_sorted)), max(betas_sorted), 200)
+    thm6_vals = [theorem6_peak_distortion(float(b)) for b in beta_grid]
+
+    styles = {
+        "ExactTab": ("#059669", "-o", "ExactTab (Exact pop. BT-MLE: pure social choice)"),
+        "SoftLin": ("#2563eb", "-s", "SoftLin (Soft-label linear BT: + model misspec.)"),
+        "HardLin": ("#dc2626", "-^", "HardLin (1-shot resampled BT: + coin-flip noise)"),
+    }
+
+    # Panel 1: Median distortion across prompts
+    ax = axes[0]
+    for est, (col, fmt, lbl) in styles.items():
+        sub = decomp_df[decomp_df["estimator"] == est]
+        meds = [float(sub[sub["beta_bt"] == b]["max_distortion"].median()) for b in betas_sorted]
+        ax.plot(betas_sorted, meds, fmt, color=col, lw=2.2, ms=6.0, label=lbl)
+    ax.axhline(1.0, color="#94a3b8", ls=":", lw=1.0)
+    ax.set_xlabel(r"Bradley-Terry Inverse Temperature $\beta_{\mathrm{BT}}$", fontsize=10.5)
+    ax.set_ylabel("Median Per-Query Distortion", fontsize=10.5)
+    ax.set_title("(A) Median Distortion Across Eval Prompts", fontweight="bold")
+    ax.legend(fontsize=8.4, frameon=True, loc="best")
+
+    # Panel 2: Worst-case (max) & 90th-pct distortion vs. Theorem 6 peak (log scale)
+    ax = axes[1]
+    for est, (col, fmt, lbl) in styles.items():
+        sub = decomp_df[decomp_df["estimator"] == est]
+        maxs = [float(sub[sub["beta_bt"] == b]["max_distortion"].max()) for b in betas_sorted]
+        p90s = [float(sub[sub["beta_bt"] == b]["max_distortion"].quantile(0.90)) for b in betas_sorted]
+        ax.plot(betas_sorted, maxs, fmt, color=col, lw=2.2, ms=6.0, label=f"{est} max")
+        ax.plot(betas_sorted, p90s, "--", color=col, lw=1.3, alpha=0.7, label=f"{est} 90th pct")
+    ax.plot(beta_grid, thm6_vals, "-.", color="#0f172a", lw=2.0, label=r"Theorem 6 peak $\sinh(\beta)/\beta$")
+    ax.set_yscale("log")
+    ax.axhline(1.0, color="#94a3b8", ls=":", lw=1.0)
+    ax.set_xlabel(r"Bradley-Terry Inverse Temperature $\beta_{\mathrm{BT}}$", fontsize=10.5)
+    ax.set_ylabel("Max / 90th-Pct Distortion (log scale)", fontsize=10.5)
+    ax.set_title("(B) Tail Distortion vs. Theorem 6 Worst-Case Bound", fontweight="bold")
+    ax.legend(fontsize=8.0, frameon=True, loc="best", ncol=2)
+
+    fig.suptitle(title, fontsize=12.5, fontweight="bold", y=1.02)
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Phase 4A KL-constrained distortion vs. tau analysis.")
     parser.add_argument("--mode", choices=["local-test", "full"], default="local-test")
@@ -587,6 +738,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--also-uniform-ref", action="store_true", help="Also run uniform pi_ref ablation.")
     parser.add_argument("--also-len-norm-ref", action="store_true", help="Also run length-normalized LLM pi_ref ablation.")
+    parser.add_argument("--only-uniform-ref", action="store_true", help="Skip LLM pi_ref and evaluate uniform pi_ref only.")
+    parser.add_argument("--three-way-decomp", action="store_true", help="Also run ExactTab vs. SoftLin vs. HardLin 3-way decomposition.")
+    parser.add_argument("--only-three-way-decomp", action="store_true", help="Run ONLY the 3-way decomposition (skips standard grid).")
     return parser.parse_args()
 
 
@@ -660,24 +814,28 @@ def main() -> None:
     print(f"Loaded {ckpt_path.name}: rank={ckpt['rank']}, wd={ckpt['weight_decay']}, beta_BT_nat={beta_nat:.2f}")
     print(f"Eval prompts={len(eval_prompt_indices)}, Users in AvgUtil={ds.num_users}, LLM={llm_name}")
 
-    # 3. Compute or load cached completion log-probs for pi_ref
-    safe_llm = llm_name.replace("/", "__")
-    ref_cache = out_dir / f"pi_ref_logprobs_{safe_llm}.npz"
-    raw_lps, lengths = compute_or_load_ref_logprobs(
-        ds=ds,
-        eval_prompt_indices=eval_prompt_indices,
-        llm_name=llm_name,
-        cache_path=ref_cache,
-        batch_size=ref_bs,
-        max_length=ref_max_len,
-        device=device,
-    )
-
-    ref_modes = ["llm"]
-    if args.also_len_norm_ref:
-        ref_modes.append("llm_len_norm")
-    if args.also_uniform_ref:
-        ref_modes.append("uniform")
+    # 3. Compute or load cached completion log-probs for pi_ref (skipped if --only-uniform-ref)
+    if args.only_uniform_ref:
+        raw_lps = {p: np.zeros(len(ds.prompt_global_xy_indices[p]), dtype=np.float64) for p in eval_prompt_indices}
+        lengths = {p: np.ones(len(ds.prompt_global_xy_indices[p]), dtype=np.int64) for p in eval_prompt_indices}
+        ref_modes = ["uniform"]
+    else:
+        safe_llm = llm_name.replace("/", "__")
+        ref_cache = out_dir / f"pi_ref_logprobs_{safe_llm}.npz"
+        raw_lps, lengths = compute_or_load_ref_logprobs(
+            ds=ds,
+            eval_prompt_indices=eval_prompt_indices,
+            llm_name=llm_name,
+            cache_path=ref_cache,
+            batch_size=ref_bs,
+            max_length=ref_max_len,
+            device=device,
+        )
+        ref_modes = ["llm"]
+        if args.also_len_norm_ref:
+            ref_modes.append("llm_len_norm")
+        if args.also_uniform_ref:
+            ref_modes.append("uniform")
 
     lambdas = np.geomspace(args.lam_min, args.lam_max, args.num_lambdas)
     all_diag_dfs = []
@@ -685,6 +843,10 @@ def main() -> None:
     for ref_mode in ref_modes:
         pi_refs, diag_df = build_ref_distributions(eval_prompt_indices, raw_lps, lengths, ref_mode)
         all_diag_dfs.append(diag_df)
+        suffix = f"{ref_mode}_{args.norm_mode.replace('-', '_')}"
+        ref_title = f"LLM={llm_name}" if ref_mode != "uniform" else "Uniform pi_ref"
+        if ref_mode == "llm_len_norm":
+            ref_title += " (length-normalized)"
 
         n_collapsed = int(diag_df["is_collapsed"].sum())
         print(
@@ -692,80 +854,109 @@ def main() -> None:
             f"median_max_prob={diag_df['max_prob'].median():.3f}, collapsed={n_collapsed}/{len(diag_df)} ---"
         )
 
-        tau_df, lam_df, r_all_by_beta = evaluate_distortion_grid(
-            ds=ds,
-            feats=feats,
-            u_norm=u_norm,
-            beta_nat=beta_nat,
-            eval_prompt_indices=eval_prompt_indices,
-            pi_refs=pi_refs,
-            betas_resample=args.betas,
-            tau_targets=args.tau_targets,
-            lambdas=lambdas,
-            myth_wd=myth_wd,
-            lr=args.lr,
-            epochs=epochs,
-            batch_size=train_bs,
-            seed=args.seed,
-            device=device,
-        )
-        suffix = f"{ref_mode}_{args.norm_mode.replace('-', '_')}"
-        tau_df["ref_mode"] = ref_mode
-        tau_df["norm_mode"] = args.norm_mode
-        lam_df["ref_mode"] = ref_mode
-        lam_df["norm_mode"] = args.norm_mode
-        tau_df.to_csv(out_dir / f"phase4a_fixed_tau_{suffix}.csv", index=False)
-        lam_df.to_csv(out_dir / f"phase4a_distortion_{suffix}.csv", index=False)
-
-        # Print per-beta summary
-        panel_sum = (
-            tau_df.groupby("beta_bt")
-            .agg(
-                median_dist=("distortion", "median"),
-                max_dist=("distortion", lambda s: float(np.max(s[np.isfinite(s)]))),
+        if not args.only_three_way_decomp:
+            tau_df, lam_df, r_all_by_beta = evaluate_distortion_grid(
+                ds=ds,
+                feats=feats,
+                u_norm=u_norm,
+                beta_nat=beta_nat,
+                eval_prompt_indices=eval_prompt_indices,
+                pi_refs=pi_refs,
+                betas_resample=args.betas,
+                tau_targets=args.tau_targets,
+                lambdas=lambdas,
+                myth_wd=myth_wd,
+                lr=args.lr,
+                epochs=epochs,
+                batch_size=train_bs,
+                seed=args.seed,
+                device=device,
             )
-            .reset_index()
-        )
-        panel_sum["thm6_peak"] = [theorem6_peak_distortion(float(b)) for b in panel_sum["beta_bt"]]
-        print(panel_sum.round(4).to_string(index=False))
+            tau_df["ref_mode"] = ref_mode
+            tau_df["norm_mode"] = args.norm_mode
+            lam_df["ref_mode"] = ref_mode
+            lam_df["norm_mode"] = args.norm_mode
+            tau_df.to_csv(out_dir / f"phase4a_fixed_tau_{suffix}.csv", index=False)
+            lam_df.to_csv(out_dir / f"phase4a_distortion_{suffix}.csv", index=False)
 
-        ref_title = f"LLM={llm_name}" if ref_mode != "uniform" else "Uniform pi_ref"
-        if ref_mode == "llm_len_norm":
-            ref_title += " (length-normalized)"
+            # Print per-beta summary
+            panel_sum = (
+                tau_df.groupby("beta_bt")
+                .agg(
+                    median_dist=("distortion", "median"),
+                    max_dist=("distortion", lambda s: float(np.max(s[np.isfinite(s)]))),
+                )
+                .reset_index()
+            )
+            panel_sum["thm6_peak"] = [theorem6_peak_distortion(float(b)) for b in panel_sum["beta_bt"]]
+            print(panel_sum.round(4).to_string(index=False))
 
-        # Plot 1: Distortion vs. beta_BT (with tau-matched Theorem 6 curves)
-        beta_plot_path = plot_distortion_vs_beta(
-            fixed_tau_df=tau_df,
-            lam_sweep_df=lam_df,
-            save_path=out_dir / f"phase4a_distortion_vs_beta_{suffix}.png",
-            title=f"Phase 4A: Empirical Distortion vs. beta_BT ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
-        )
-        print(f"Saved distortion-vs-beta plot to: {beta_plot_path}")
+            # Plot 1: Distortion vs. beta_BT (with tau-matched Theorem 6 curves)
+            beta_plot_path = plot_distortion_vs_beta(
+                fixed_tau_df=tau_df,
+                lam_sweep_df=lam_df,
+                save_path=out_dir / f"phase4a_distortion_vs_beta_{suffix}.png",
+                title=f"Phase 4A: Empirical Distortion vs. beta_BT ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
+            )
+            print(f"Saved distortion-vs-beta plot to: {beta_plot_path}")
 
-        # Plot 2: Faceted Distortion vs. tau across representative beta_BT panels
-        tau_plot_mask = (~lam_df["is_resampled"]) | (lam_df["beta_bt"].isin(args.tau_plot_betas))
-        tau_plot_path = plot_phase4a_scatter(
-            df=lam_df[tau_plot_mask],
-            save_path=out_dir / f"phase4a_distortion_vs_tau_{suffix}.png",
-            title=f"Phase 4A: Empirical Distortion vs. tau ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
-        )
-        print(f"Saved distortion-vs-tau plot to : {tau_plot_path}")
+            # Plot 2: Faceted Distortion vs. tau across representative beta_BT panels
+            tau_plot_mask = (~lam_df["is_resampled"]) | (lam_df["beta_bt"].isin(args.tau_plot_betas))
+            tau_plot_path = plot_phase4a_scatter(
+                df=lam_df[tau_plot_mask],
+                save_path=out_dir / f"phase4a_distortion_vs_tau_{suffix}.png",
+                title=f"Phase 4A: Empirical Distortion vs. tau ({ref_title}, {args.norm_mode}, rank={ckpt['rank']})",
+            )
+            print(f"Saved distortion-vs-tau plot to : {tau_plot_path}")
 
-        # Qualitative inspection of top-K highest-distortion queries
-        top_txt_path = out_dir / f"top_distortion_cases_{suffix}.txt"
-        report_text = inspect_top_distortion_queries(
-            ds=ds,
-            u_norm=u_norm,
-            pi_refs=pi_refs,
-            lengths=lengths,
-            r_all_by_beta=r_all_by_beta,
-            lam_df=lam_df,
-            out_txt_path=top_txt_path,
-            top_k=args.top_k_inspect,
-        )
-        print(f"Saved qualitative cases to      : {top_txt_path}")
-        if ref_mode in ("llm_len_norm", "llm") and args.top_k_inspect > 0:
-            print(report_text)
+            # Qualitative inspection of top-K highest-distortion queries
+            top_txt_path = out_dir / f"top_distortion_cases_{suffix}.txt"
+            report_text = inspect_top_distortion_queries(
+                ds=ds,
+                u_norm=u_norm,
+                pi_refs=pi_refs,
+                lengths=lengths,
+                r_all_by_beta=r_all_by_beta,
+                lam_df=lam_df,
+                out_txt_path=top_txt_path,
+                top_k=args.top_k_inspect,
+            )
+            print(f"Saved qualitative cases to      : {top_txt_path}")
+            if ref_mode in ("llm_len_norm", "llm") and args.top_k_inspect > 0:
+                print(report_text)
+
+        if args.three_way_decomp or args.only_three_way_decomp:
+            print(f"\n  Running 3-way decomposition (ExactTab vs. SoftLin vs. HardLin) for ref_mode={ref_mode}...", flush=True)
+            decomp_df = evaluate_three_way_decomposition(
+                ds=ds,
+                feats=feats,
+                u_norm=u_norm,
+                eval_prompt_indices=eval_prompt_indices,
+                pi_refs=pi_refs,
+                betas_resample=args.betas,
+                lambdas=lambdas,
+                myth_wd=myth_wd,
+                lr=args.lr,
+                epochs=epochs,
+                batch_size=train_bs,
+                seed=args.seed,
+                device=device,
+            )
+            decomp_df["ref_mode"] = ref_mode
+            decomp_df["norm_mode"] = args.norm_mode
+            decomp_csv = out_dir / f"phase4a_3way_decomposition_{suffix}.csv"
+            decomp_df.to_csv(decomp_csv, index=False)
+
+            piv = decomp_df.groupby(["beta_bt", "estimator"])["max_distortion"].agg(["median", "max"]).unstack("estimator")
+            print(piv.round(4).to_string())
+
+            decomp_png = plot_three_way_decomposition(
+                decomp_df=decomp_df,
+                save_path=out_dir / f"phase4a_3way_decomposition_{suffix}.png",
+                title=f"Phase 4A 3-Way Decomposition: Social Choice vs. Misspecification vs. Label Noise ({ref_title}, rank={ckpt['rank']})",
+            )
+            print(f"Saved 3-way decomposition CSV : {decomp_csv}")
+            print(f"Saved 3-way decomposition plot: {decomp_png}")
 
     pd.concat(all_diag_dfs, ignore_index=True).to_csv(out_dir / "pi_ref_diagnostics.csv", index=False)
     print(f"\nPhase 4A completed in {time.perf_counter() - t0:.1f}s")
