@@ -1,31 +1,31 @@
 {
   "mode": "full",
-  "checkpoint": "user_bt_rank64_best.pt",
-  "distortion_source": "user_bt_rank64_best.pt + mythical_bt (uniform pi_ref)",
+  "checkpoint": "user_bt_best.pt",
+  "distortion_source": "user_bt_best.pt + mythical_bt (uniform pi_ref)",
   "dpo_model": null,
   "ref_model": null,
-  "user_bt_rank": 64,
+  "user_bt_rank": 128,
   "num_eval_prompts": 520,
   "n_high_queries": 100,
   "n_low_queries": 100,
-  "num_dataset_responses_plotted": 3648,
+  "num_dataset_responses_plotted": 3540,
   "k_generations": 0,
   "pca_explained_variance_ratio": [
-    0.2106,
-    0.0957
+    0.2066,
+    0.0978
   ],
   "centered_pca_explained_variance_ratio": [
-    0.3245,
-    0.0886
+    0.3066,
+    0.0881
   ],
   "spearman_fragmentation_vs_distortion": {
-    "rho": 0.2593,
-    "p": 1.9499343257189484e-09
+    "rho": 0.2442,
+    "p": 1.6867180257319546e-08
   },
   "spearman_user_std_vs_distortion": {
-    "rho": 0.2034,
-    "p": 2.9321029767591144e-06
+    "rho": 0.1563,
+    "p": 0.0003466273583221003
   },
   "centroid_shifts": {},
-  "elapsed_seconds": 37.91
+  "elapsed_seconds": 24.71
 }

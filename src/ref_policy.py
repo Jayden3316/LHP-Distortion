@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Sequence
 
 import numpy as np
@@ -52,20 +53,39 @@ def load_causal_lm(
     device: str | torch.device = "cpu",
     dtype: torch.dtype | None = None,
 ):
-    """Load a causal LM and tokenizer in eval mode."""
+    """Load a causal LM (or saved PEFT/LoRA adapter directory) and tokenizer in eval mode."""
     dev = torch.device(device)
     if dtype is None:
         if dev.type == "cpu":
             dtype = torch.float32
         else:
             dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    try:
-        model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype)
-    except TypeError:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+
+    adapter_cfg_path = Path(model_name) / "adapter_config.json"
+    if adapter_cfg_path.is_file():
+        import json
+        from peft import PeftModel
+
+        adapter_cfg = json.loads(adapter_cfg_path.read_text(encoding="utf-8"))
+        base_name = adapter_cfg["base_model_name_or_path"]
+        tok_src = model_name if (Path(model_name) / "tokenizer_config.json").is_file() else base_name
+        tokenizer = AutoTokenizer.from_pretrained(tok_src)
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        try:
+            base_model = AutoModelForCausalLM.from_pretrained(base_name, dtype=dtype)
+        except TypeError:
+            base_model = AutoModelForCausalLM.from_pretrained(base_name, torch_dtype=dtype)
+        model = PeftModel.from_pretrained(base_model, model_name)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        try:
+            model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype)
+        except TypeError:
+            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+
     model.to(dev)
     model.eval()
     return model, tokenizer
@@ -128,12 +148,14 @@ def compute_completion_logprobs(
     # Sort by sequence length before batching to minimize padding waste (huge VRAM win for 248K-vocab LLMs)
     order = sorted(range(len(completions)), key=lambda idx: len(full_seqs[idx]))
 
-    # Low-VRAM path for standard CausalLM architectures (Qwen2/3/3.5, Llama, SmolLM2, Mistral):
-    # run backbone to get [B, L, H] hidden states, then project ONLY completion tokens in 64-token
+    # Low-VRAM path for standard CausalLM architectures (Qwen2/3/3.5, Llama, SmolLM2, Mistral),
+    # including PEFT/LoRA-wrapped CausalLMs (where active LoRA layers live inside get_base_model()).
+    # Runs backbone to get [B, L, H] hidden states, then projects ONLY completion tokens in 64-token
     # chunks via lm_head (~64 MB peak instead of multi-GB [B, L, vocab_size] logits + log_softmax).
-    base_model = getattr(model, "model", None)
-    lm_head = getattr(model, "lm_head", None)
-    cfg = getattr(model, "config", None)
+    causal_lm = model.get_base_model() if hasattr(model, "peft_config") and hasattr(model, "get_base_model") else model
+    base_model = getattr(causal_lm, "model", None)
+    lm_head = getattr(causal_lm, "lm_head", None)
+    cfg = getattr(causal_lm, "config", None)
     can_chunk_lm_head = (
         base_model is not None
         and lm_head is not None

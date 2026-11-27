@@ -1,42 +1,85 @@
 # Project Log — LHP-Distortion
 
-Running log of completed work, locked-in design decisions (mapped to sections of `../LHP_Report/main.tex`), and the step-by-step experimental roadmap (currently scoped through **Phase 4A**, before moving to DPO in Phase 4B).
+Running log of completed work, locked-in design decisions (mapped to sections of `../LHP_Report/main.tex`), empirical sanity checks, and the current experimental roadmap (Phases 0–4B + Qualitative Analysis).
 
 ---
 
 ## Completed Milestones
 
-### 2026-11-26 — Dataset Exploration & Selection
+### 2026-11-26 — Dataset Exploration & Turn-1 Selection Audit
 - [x] Downloaded `HannahRoseKirk/prism-alignment` (`survey`, `conversations`, `utterances`, `metadata`) to `data/prism-alignment/`.
 - [x] Analyzed PRISM per-user counts (`analyze_prism_users.py`, `prism_dataset_exploration.ipynb`) and audited prompt overlap → no shared prompt set across users (max 13/1,396 users on a substantive opening prompt). Switched datasets.
 - [x] Streamed `facebook/community-alignment-dataset` (90,256 conversations) and filtered on-the-fly to English (`download_community_alignment_en.py`) → `data/community-alignment/community_alignment_en.csv` (30,856 rows, 517.7 MB).
 - [x] Analyzed English split (`analyze_community_alignment_en.py`): 1,331 users, 30,856 conversations, 79,514 preference queries; 1,033 pregenerated Turn-1 prompts (560 with $\ge 10$ users; top prompts have ~70–136 unique responses).
-- [x] Audited Turn-1-only user filtering thresholds ($K$ = min Turn-1 responses/user, each yielding 3 pairwise comparisons):
+- [x] Audited Turn-1-only user filtering thresholds (`audit_turn1_dataset.py` → `results/turn1_selection_audit.json`):
 
 | Filter | Users | Turn-1 Rows | Pairwise Pairs | Unique `(x, y)` | Prompts ($\ge 10$u) | Prompts ($\ge 20$u) | Prompts ($\ge 30$u) | Prompts ($\ge 50$u) |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | $K > 10$ | 1,023 | 29,373 | 88,119 | 49,206 | 560 | 559 | 481 | 20 |
 | $K > 15$ | 934 | 28,178 | 84,534 | 47,745 | 559 | 551 | 415 | 20 |
-| **$K > 20$** | **839** | **26,467** | **79,401** | **45,797** | **559** | **520** | **329** | **19** |
+| **$K > 20$** | **839** | **26,467** | **79,323** (dedup) | **45,797** | **559** | **520** | **329** | **19** |
 | $K > 25$ | 669 | 22,518 | 67,554 | 41,644 | 552 | 431 | 141 | 18 |
 | $K > 30$ | 261 | 11,093 | 33,279 | 28,690 | 336 | 23 | 12 | 1 |
 
-- [x] Audited theoretical framework in `../2505.23749v1.pdf` (Gölz, Haghtalab, & Yang, 2025).
-- [x] Checked local environment: Python 3.12 (`.da5453`), `torch 2.3.1+cpu` (`cuda: False`), `scipy 1.17.1`, `scikit-learn 1.9.1`.
+- [x] Selected **$K > 20$** active users (**839 users**, per-user pairs: min `63`, Q1 `78`, median `87`, mean `94.54`, Q3 `93`, p95 `146.4`, max `567`) and **$M \ge 20$** eval prompts (**520 prompts**, median $|\mathcal{A}(x)| = 18$, **10,851 unique `(x, y)`**).
 
-### 2026-11-26 — Phase 0–4A Core Implementation, Local Verification & Turn-1 Audit
-- [x] Upgraded `transformers` to `4.49.0` (`tokenizers 0.21.4`), installed `pytest 9.2.0`, and cached `answerdotai/ModernBERT-base` + `HuggingFaceTB/SmolLM2-135M` locally.
-- [x] Added compatibility guard in `src/encoder.py` for `torch 2.3.1` + Python 3.12 `@torch.compile` decorator inside `modeling_modernbert.py` (no-op fallback only when Dynamo raises Python 3.12 error; untouched on cloud `torch >= 2.4`).
+### 2026-11-26 — Phases 0–4A Core Library, Normalization, Report & T4 Fixes
+- [x] Upgraded local `.da5453` environment to `torch 2.15.0+cpu`, `transformers 5.24.1`, `numpy 2.5.5`, `trl 1.19.0`, `peft 0.22.0`, `accelerate 1.16.0`, `datasets 5.2.0`, `pytest 9.2.0`.
 - [x] Implemented Phases 1–4A modules under `src/`:
   - `src/data.py`, `src/encoder.py`, `src/ref_policy.py`, `src/user_bt.py`, `src/mythical_bt.py`, `src/distortion.py`.
-- [x] Implemented and verified all 7 test modules (`tests/test_{data,encoder,ref_policy,user_bt,mythical_bt,distortion,e2e_smoke}.py`): **21/21 passed in 14.53s** on local CPU (including exact Theorem 6 synthetic reproduction: distortion `1.36 → 6.72 → 37.26` across $\beta_{\mathrm{BT}} \in \{4, 6, 8\}$ at $\tau = \log 2$, exceeding the $O(\beta^2)$ Borda upper bound of `16.0` at $\beta_{\mathrm{BT}} = 8$).
-- [x] Ran Turn-1 dataset selection audit (`audit_turn1_dataset.py` → `results/turn1_selection_audit.json`):
-  - $K > 20$ users: **839 users**, **8,719 unique prompts** (1,021 pregenerated), **45,797 unique `(x, y)` pairs**, **79,323 deduplicated pairwise comparisons** (78 raw duplicate/blank candidate pairs removed cleanly).
-  - Prompt cutoff comparison:
-    - $M \ge 20$ users/prompt: **520 prompts**, median $|\mathcal{A}(x)| = 18.0$ (min 4, max 124), **10,851 unique `(x, y)`**, **51,532 pairs**.
-    - $M \ge 30$ users/prompt: **329 prompts**, median $|\mathcal{A}(x)| = 20.0$ (min 4, max 124), **7,564 unique `(x, y)`**, **36,828 pairs**.
-    - $M \ge 40$ users/prompt: drops to **24 prompts** (median $|\mathcal{A}(x)| = 64.5$).
-  - Word lengths on $M \ge 20$ prompts: prompt median **14** (p95 **35**, max **52**); response median **111** (p95 **203**, p99 **246**, max **931**) → `max_length = 512` covers >99% without truncation.
+- [x] Fixed T4 GPU VRAM creep in `src/encoder.py` (`.contiguous().clone()` on CLS slice so `[B, L, H]` storage isn't pinned, CPU output accumulation, auto `bf16`/`fp16` detection, dynamic `reference_compile` guard for `transformers 5.x`).
+- [x] Fixed T4 GPU OOM in `src/ref_policy.py` for 248K-vocab `Qwen/Qwen3.5-0.8B`:
+  - Runs backbone `model.model(..., use_cache=False)` to get `[B, L, H]` hidden states (~8 MB) and projects **only completion tokens** through `model.lm_head` in 64-token chunks (~64 MB peak in fp32) with fused `-F.cross_entropy(..., reduction="sum")` (eliminating multi-GB `[B, L, 248320]` logits & `F.log_softmax` allocations).
+  - Length-sorts completions before batching, auto-selects `float16` on T4 (`sm_75`), explicitly frees batch tensors, and transparently loads PEFT/LoRA adapter directories (`adapter_config.json`).
+- [x] Updated `../LHP_Report/main.tex` (Section 3 Methodology: 3.1 Dataset & Subsampling + Table 1, 3.2 Latent Utilities & BT-preserving Per-Query Normalization, 3.3 Reference Policy & KL-Constrained Distortion) and verified clean `pdflatex` compilation (`main.pdf`, 5 pages, 0 warnings/errors).
+
+### 2026-11-26 — Full Cloud Phase 3 Completed (`results/phase3/`)
+- [x] Ran `run_phase3_user_bt.py --mode full --device cuda` on T4 GPU (46.7 min total; cached `modernbert_cls_features.pt` for all 45,797 `(x, y)` pairs):
+
+| Model Family | Best WD | Val Loss | Val Acc | Val Brier | Full Acc | $\beta_{\mathrm{BT}}^{\mathrm{nat}}$ | Median Top-1 Majority |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Shared (Mythical) | `0.1` | `0.6153` | `65.02%` | `0.2137` | `66.60%` | — | `1.000` |
+| UserBT (`d=2`) | `0.1` | `0.5773` | `67.64%` | `0.1983` | `70.66%` | `69.08` | `0.628` |
+| UserBT (`d=8`) | `1.0` | `0.5783` | `68.38%` | `0.1985` | `73.85%` | `26.79` | `0.396` |
+| UserBT (`d=32`) | `1.0` | `0.5178` | `73.90%` | `0.1729` | `86.27%` | `40.27` | `0.284` |
+| UserBT (`d=64`) | `1.0` | `0.4830` | `76.81%` | `0.1583` | `90.29%` | `48.08` | `0.265` |
+| **UserBT (`d=128`)** | **`1.0`** | **`0.4735`** | **`78.03%`** | **`0.1531`** | **`91.66%`** | **`58.90`** | **`0.242`** |
+
+- **Key Phase 3 findings**:
+  - Modeling heterogeneous users yields **+13.0 percentage points held-out accuracy** over the mythical single-user BT baseline (`65.0% → 78.0%`, `val_loss 0.615 → 0.473`), with near-perfect held-out probability calibration (`results/phase3/phase3_user_bt_diagnostics.png`).
+  - Across the 520 eval prompts, the median top-1 majority share is only **24.2%** (`0.242`), and per-query shared spans $M(x)$ range `5.30–23.61` (median `11.83`).
+
+### 2026-11-27 — Qualitative User-Space Geometry & Polarization Analysis (`results/qualitative_pca/`)
+- [x] Implemented and upgraded `run_qualitative_pca.py` + `tests/test_qualitative_pca.py` to generate a **4-panel user-space analysis** (`qualitative_pca_user_space.png`):
+  - **(A) Raw 2D PCA of $\phi(x, y) = W\psi(x, y)$** colored by query distortion with 2D Gaussian KDE contours for top-$N$ high- vs. low-distortion queries (plus DPO & Base/Ref LM generation overlays when `--dpo-model` is provided).
+  - **(B) Within-Prompt Centered 2D PCA of $\Delta\phi(x, y) = \phi(x, y) - \bar{\phi}(x)$** (removes prompt-topic offset; captures `39.5%` variance in 2D on `rank=128`).
+  - **(C) 1D Consensus Score Histogram + KDE** along $\langle \hat{\bar{w}}, \Delta\phi(x, y) \rangle$ (where $\bar{w} = \frac{1}{N}\sum_i w_i$ is the mean utilitarian user direction) comparing low- vs. high-distortion queries.
+  - **(D) Prompt-Level User Polarization vs. Distortion** across all 520 eval prompts (User Fragmentation $1 - \max_y \mathrm{Top1Share}(y|x)$ and Cross-User Utility Std).
+- [x] Ran on the full `rank=128` checkpoint (`user_bt_best.pt`, `top-n=100`, `N = 3,540` plotted responses across 200 extreme queries + all 520 prompts in Panel D):
+  - **Consensus Bimodality Discovery (Panel C)**: Low-distortion prompts exhibit a **clearly bimodal** consensus-score distribution (mediocre responses around `-2.5`, trough around `+2.0`, and a distinct standout consensus-winner peak at `+6.0` to `+7.5`), whereas high-distortion prompts collapse into a **unimodal** cluster centered near `0.0` (no standout utilitarian winner).
+  - **High-Dimensional Disagreement**: Top 5 PCs of centered user embeddings $W_{\mathrm{users}} - \bar{w}$ explain only `[5.0%, 3.7%, 3.3%, 3.0%, 2.9%]` of variance — disagreement is genuinely multi-dimensional rather than 1D, motivating the 1D consensus-direction histogram in Panel C over a single polarization axis.
+  - **Polarization Envelope (Panel D)**: Both user fragmentation ($\rho = +0.244$, $p = 1.7 \times 10^{-8}$) and cross-user utility std ($\rho = +0.156$, $p = 3.5 \times 10^{-4}$) significantly predict distortion via a triangular "necessary-but-not-sufficient" envelope (consensus prompts with fragmentation $< 0.45$ almost never exceed distortion `1.04`).
+
+### 2026-11-27 — Phase 4B DPO Implementation (`trl.DPOTrainer` + PEFT LoRA)
+- [x] Implemented `src/dpo.py`, `run_phase4b_dpo.py`, and `tests/test_dpo.py`.
+- [x] Verified `pytest -v tests/test_dpo.py` (**2/2 passed**) including a real 2-step `trl.DPOTrainer` + LoRA training, adapter save/reload via `load_causal_lm`, and exact numerical equivalence between chunked PEFT `compute_completion_logprobs` and brute-force autoregressive logits.
+- [x] Verified end-to-end local CPU smoke run (`python run_phase4b_dpo.py --mode local-test --max-steps 3 --dpo-betas 0.1 0.5 --betas 2.0 --save-adapters`) → `results/phase4b_local_test/` (reuses cached `pi_ref` log-probs, evaluates both raw `llm` and `llm_len_norm`, overlays Phase 4A Gibbs medians & Theorem 6 curves).
+
+### 2026-11-27 — $\beta_{\mathrm{BT}}$ Resampling & Recovery Sanity Check (`check_beta_recovery.py`)
+- [x] Refit `LowRankUserBT` (`rank=32`, 80/20 split, `wd ∈ {0.001, 0.1, 1.0}`) and `MythicalUserBT` (`wd=0.1`) on ModernBERT features from resampled datasets at $\beta_{\mathrm{target}} \in \{1, 2, 4, 8, 16\}$ (`results/beta_recovery_check/beta_recovery_full_rank32.csv`):
+
+| $\beta_{\mathrm{target}}$ | Bayes Acc | Bayes NLL | Val Acc (`wd=1.0`) | Val NLL (`wd=1.0`) | $\hat{\beta}_{\mathrm{slope}}$ (`wd=1.0`) | $\hat{\beta}_{\mathrm{slope}}$ (`wd=0.001`) | Med $M(x)$ (`wd=1.0`) | Med $M(x)$ (`wd=0.001`) | Mythical Span |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `1.0` | `0.552` | `0.685` | `0.508` | `0.868` | `0.71` | `2.18` | `8.68` | `35.10` | `0.60` |
+| `2.0` | `0.601` | `0.662` | `0.528` | `0.848` | `1.55` | `4.54` | `9.37` | `37.49` | `0.89` |
+| `4.0` | `0.684` | `0.592` | `0.590` | `0.780` | `3.22` | `9.88` | `11.44` | `43.47` | `1.43` |
+| `8.0` | `0.789` | `0.448` | `0.681` | `0.659` | `5.89` | `19.36` | `14.84` | `57.14` | `2.18` |
+| `16.0` | `0.883` | `0.272` | `0.763` | `0.516` | `8.58` | `29.30` | `18.49` | `69.68` | `2.76` |
+
+- **Key conclusions**:
+  1. Single-shot pairs *do* identify finite $\beta_{\mathrm{BT}}$ in population because `79,323` feature-linked comparisons control label SNR (Bayes acc `55.2% → 88.3%`).
+  2. However, for overparameterized per-user MLE (`rank=32`, `~51K` params on `63K` train pairs), **weak regularization (`wd=0.001`) causes severe finite-sample separation / logit blow-up** (`val_nll = 2.09` even at $\beta=1$, `med_M(x) = 35–70`). With the validation-selected Gaussian prior (`wd=1.0`), $\hat{\beta}_{\mathrm{slope}}$ tracks $\beta_{\mathrm{target}}$ closely (`0.71, 1.55, 3.22, 5.89` for `1, 2, 4, 8`) before bending downward from L2 shrinkage at $\beta=16$ (`8.58`).
+  3. Taking the max span over 839 users ($M(x) = \max_j \mathrm{span}_j(x)$) adds an extreme-value noise floor (~`8.5`), whereas the non-separable 768-dim `MythicalUserBT` reward span scales cleanly (`0.60 → 2.76`). Crucially, Phase 4A/4B never refit `LowRankUserBT` on resampled pairs—$\tilde{u}_i$ stays fixed while only the alignment mechanism (`MythicalUserBT` / `DPOTrainer`) sees the resampled pairs.
 
 ---
 
@@ -44,68 +87,29 @@ Running log of completed work, locked-in design decisions (mapped to sections of
 
 | ID | Decision | Specification & Rationale | Report Section |
 | :--- | :--- | :--- | :--- |
-| **D0** | **Theoretical Focus** | Focus exclusively on **KL-constrained RLHF / DPO (Theorem 6)** of Gölz et al. (2025). Measure empirical distortion as a function of realized per-query KL radius $\tau(x) = D_{\mathrm{KL}}(\pi(\cdot \mid x) \| \pi_{\mathrm{ref}}(\cdot \mid x))$ across $\beta_{\mathrm{BT}}$ settings. | Sec. 2 (Background) |
-| **D1a** | **Compute & Testing Protocol** | Every pipeline module has fast **local CPU unit & smoke tests** before cloud runs (A100-80GB up to 20h / H100-80GB up to 25h). Local test LLM: `HuggingFaceTB/SmolLM2-135M`. | Sec. 3 (Methodology) |
-| **D1b** | **Cloud LLMs & Multi-Seed Plan** | Primary cloud LLM: `Qwen/Qwen3.5-0.8B` (for $\pi_{\mathrm{ref}}$ and Phase 4B DPO via `trl.DPOTrainer`, with multiple seeds to capture data-order sensitivity of $\tau(x)$). Once trends are clear, scale up to a 4B model. | Sec. 3 & 4 |
-| **D1c** | **Encoder & User Embeddings** | Prompt–response features $\phi(x, y) = W \psi(x, y)$ using frozen `answerdotai/ModernBERT-base` (`transformers >= 4.48.0`) + trainable linear head $W \in \mathbb{R}^{d \times 768}$. User embeddings $w_i \in \mathbb{R}^d$ are purely user-ID embeddings (no demographics), sweeping rank $d \in \{2, 8, 32\}$ locally and $d \in \{2, 8, 32, 64, 128\}$ on full cloud runs. Online frozen forward pass for local runs; precomputed frozen CLS feature cache for full rank sweeps (mathematically identical). | Sec. 3 (Methodology) |
-| **D2** | **Utility Fitting, Per-Query Normalization & $\beta_{\mathrm{BT}}$ Sweep** | Fit unconstrained linear logits $s_i(x, y) = \langle w_i, \phi(x, y) \rangle$ under pairwise BT loss. After fitting, apply **BT-preserving per-query normalization** into $[0, 1]$: remove each user's unidentifiable within-query offset $s_i(x, y) - \min_{y' \in \mathcal{A}(x)} s_i(x, y')$ and divide **all users on query $x$** by the single shared query max-span $M(x) = \max_j (\max_{y'} s_j(x, y') - \min_{y'} s_j(x, y'))$. This preserves (i) exact within-query BT comparison probabilities for every user under one shared temperature $\beta_{\mathrm{BT}}(x) = M(x)$, (ii) relative preference intensities across users (unlike per-user unit-range scaling, which inflates indifferent users to span 1), and (iii) isolation from cross-query outlier scales (unlike global affine scaling). Retain `unit-range` and `global` as ablations. For $\beta_{\mathrm{BT}}$ scaling sweeps, resample pairwise comparisons from $\tilde{u}_i$ under $P(y_1 \succ_i y_2 \mid x) = \sigma(\beta_{\mathrm{BT}}(\tilde{u}_i(y_1 \mid x) - \tilde{u}_i(y_2 \mid x)))$. | Sec. 3 (Methodology) |
-| **D3** | **Denominator Policy & Reference Policy $\pi_{\mathrm{ref}}$** | Run **Option A (shared $\bar{w}$ BT-MLE + closed-form KL policy $\pi_\lambda(y \mid x) \propto \pi_{\mathrm{ref}}(y \mid x)\exp(r_{\mathrm{MLE}}(x, y)/\lambda)$)** first; inspect individual BT fit quality and Option A distortion before moving to **Option B (`trl.DPOTrainer`)**. Define $\pi_{\mathrm{ref}}(y \mid x) \propto \exp(\sum_{t=1}^T \log p_{\pi_0}(y_t \mid x, y_{<t}))$ normalized across $y \in \mathcal{A}(x)$, while monitoring entropy / length-bias collapse. | Sec. 3 (Methodology) |
-| **D4** | **Data Scope & Loss** | Restrict strictly to **Turn-1 prompts & responses** from `community_alignment_en.csv`. No separate train/eval split required for distortion evaluation (theory operates on the training comparison distribution; held-out diagnostics can still be logged separately for user-BT sanity checks). Use **pairwise comparisons** only: each 4-way choice yields 3 ordered pairs `(chosen, rejected)`. | Sec. 3 (Methodology) |
-| **D5** | **Target Plot & Theorem 6 Curve** | Multi-panel scatter plot with realized $\tau(x)$ on x-axis and empirical distortion on y-axis (one panel per $\beta_{\mathrm{BT}}$), overlaid with the exact closed-form Theorem 6 curve $\mathrm{dist}_{\mathrm{Thm6}}(\tau; \beta_{\mathrm{BT}})$ derived from Appendix E.2's 3-alternative instance: rises smoothly from $1$ at $\tau = 0$ via $\frac{q(\tau) R(\beta) + (1-q(\tau))}{(1-q(\tau)) R(\beta) + q(\tau)}$ (where $D_{\mathrm{KL}}((q, 1-q) \| (\frac{1}{2}, \frac{1}{2})) = \tau$) to its tight constant-free peak $R(\beta) = \frac{\sinh(\beta)}{\beta} = \Theta(e^\beta / \beta)$ at $\tau = \ln 2$ and plateaus at $R(\beta)$ for $\tau \ge \ln 2$. | Sec. 4 (Results) |
-| **D6** | **User, Prompt & Population Scope** | Retain users with $K > 20$ Turn-1 preferences (**839 users**, >60 pairwise pairs/user, **26,467 Turn-1 rows**, **79,323 deduplicated pairs**, **45,797 unique `(x, y)`**). Evaluate distortion on Turn-1 prompts with **$M \ge 20$ retained annotators** (**520 prompts**, median $|\mathcal{A}(x)| = 18$, **10,851 unique `(x, y)`**). Compute $\mathrm{AvgUtil}(y \mid x)$ by averaging $\tilde{u}_i(y \mid x)$ over **all 839 retained users**. | Sec. 3 (Methodology) |
+| **D0** | **Theoretical Focus** | Focus exclusively on **KL-constrained RLHF / DPO (Theorem 6 & Prop. 14)** of Gölz et al. (2025). Measure empirical distortion vs. realized per-query KL radius $\tau(x) = D_{\mathrm{KL}}(\pi(\cdot \mid x) \| \pi_{\mathrm{ref}}(\cdot \mid x))$ across $\beta_{\mathrm{BT}}$ settings. | Sec. 2 (Background) |
+| **D1a** | **Compute & Testing Protocol** | Every pipeline module has fast **local CPU unit & smoke tests** (`SmolLM2-135M`, `ModernBERT-base`) verified before cloud GPU runs. | Sec. 3 (Methodology) |
+| **D1b** | **Cloud LLMs & Multi-Seed Plan** | Primary cloud LLM: `Qwen/Qwen3.5-0.8B` (for $\pi_{\mathrm{ref}}$ and Phase 4B DPO via `trl.DPOTrainer`, multi-seed to capture data-order sensitivity of $\tau(x)$). Scale up to 4B once 0.8B trends are confirmed. | Sec. 3 & 4 |
+| **D1c** | **Encoder & User Embeddings** | Prompt–response features $\phi(x, y) = W \psi(x, y)$ using frozen `answerdotai/ModernBERT-base` + trainable linear head $W \in \mathbb{R}^{d \times 768}$. Pure user-ID embeddings $w_i \in \mathbb{R}^d$ (no demographics), sweeping $d \in \{2, 8, 32, 64, 128\}$ and $\mathrm{wd} \in \{10^{-3}, 10^{-2}, 10^{-1}, 1, 5\}$ on full data (best: `d=128, wd=1.0`). | Sec. 3 (Methodology) |
+| **D2** | **BT-Preserving Per-Query Normalization** | Fit unconstrained bilinear logits $s_i(x, y) = \langle w_i, W\psi(x, y) \rangle$. Normalize per query by removing each user's unidentifiable offset $s_i(x, y) - \min_{y'} s_i(x, y')$ and dividing **all users on query $x$** by the single shared max-span $M(x) = \max_j(\max_{y'} s_j(x, y') - \min_{y'} s_j(x, y'))$. Preserves exact within-query BT probabilities (under shared $\beta_{\mathrm{BT}}(x) = M(x)$), relative cross-user intensity ratios, and isolation from cross-query outliers. Keep `unit-range` and `global` as ablations. | Sec. 3.2 |
+| **D3** | **Phase 4A Sanity Check & $\pi_{\mathrm{ref}}$ Ablations** | Run Phase 4A closed-form Gibbs policy $\pi_\lambda(y \mid x) \propto \pi_{\mathrm{ref}}(y \mid x)\exp(r_{\mathrm{MLE}}(x, y)/\lambda)$ as an optimization-free sanity check before Phase 4B DPO. Track both raw log-probs (`llm`), length-normalized log-probs (`llm_len_norm`, prevents short-completion collapse), and `uniform` $\pi_{\mathrm{ref}}$. | Sec. 3.3 |
+| **D4** | **Data Scope & Pairwise Loss** | Restrict strictly to **Turn-1 prompts & responses** from `community_alignment_en.csv` ($K > 20 \Rightarrow 839$ users, $79,323$ deduplicated pairs; $M \ge 20 \Rightarrow 520$ eval prompts). Each 4-way choice yields 3 ordered pairs `(chosen, rejected)`. | Sec. 3.1 |
+| **D5** | **Theorem 6 $\tau$-Dependent Curves** | Plot both Distortion vs. $\beta_{\mathrm{BT}}$ (with $\tau$-dependent Theorem 6 curves) and faceted Distortion vs. $\tau$. Exact Theorem 6 curve rises from $1$ at $\tau = 0$ via $\frac{q(\tau)R(\beta) + (1-q(\tau))}{(1-q(\tau))R(\beta) + q(\tau)}$ ($D_{\mathrm{KL}}((q,1-q)\|(\frac{1}{2},\frac{1}{2})) = \tau$) to peak $R(\beta) = \sinh(\beta)/\beta$ at $\tau = \ln 2$. | Sec. 2 & 4 |
+| **D6** | **Population Scope for $\mathrm{AvgUtil}$** | Compute $\mathrm{AvgUtil}(y \mid x)$ by averaging $\tilde{u}_i(y \mid x)$ over **all 839 retained users** on each of the 520 eval prompts. | Sec. 3.1–3.2 |
+| **D7** | **Qualitative User-Space Evaluation** | Project extreme high- vs. low-distortion prompts in trained user space $\phi(x, y)$: (A) raw 2D PCA + KDE contours, (B) within-prompt centered $\Delta\phi(x, y)$ PCA, (C) 1D consensus-direction histogram + KDE (reveals bimodal standout-winner structure in low-distortion prompts vs. unimodal ambiguity in high-distortion prompts), and (D) prompt-level fragmentation vs. distortion across all 520 prompts. Overlay DPO vs. Base LM generations once Phase 4B checkpoints are trained. | Sec. 4 (Qualitative) |
+| **D8** | **Phase 4B DPO Training (`trl` + LoRA)** | Train real LLMs with `trl.DPOTrainer` + PEFT LoRA (`ref_model=None` so adapters disable in-place for $\pi_{\mathrm{ref}}$ without duplicating model weights in VRAM), dynamically targeting attention/MLP/DeltaNet linear layers (`q/k/v/o_proj`, `in_proj_qkv`, `out_proj`, `gate/up/down_proj`), sweeping `--dpo-betas` ($\beta_{\mathrm{DPO}}$) and `--seeds`, and evaluating exact KL-constrained distortion under both `llm` and `llm_len_norm`. | Sec. 3.3 & 4 |
+| **D9** | **$\beta_{\mathrm{BT}}$ Resampling & Prior Trade-off** | Resample pair orientations from fixed $\tilde{u}_i$ via $\sigma(\beta_{\mathrm{BT}}\Delta\tilde{u}_i)$ to probe Theorem 6's $\beta_{\mathrm{BT}}$ scaling. Verified via `check_beta_recovery.py` that finite-sample per-user MLE requires L2 regularization (`wd=1.0`) to prevent logit blow-up (at the cost of mild shrinkage at high $\beta_{\mathrm{BT}}$), while the 768-dim `MythicalUserBT` stays non-separable and scales monotonically. | Sec. 3.2 & Appendix |
 
 ---
 
-## Unit Test Plan (Phases 1–4A)
+## Current Status & Remaining Roadmap
 
-All test modules live under `tests/` and run locally on CPU:
-1. `tests/test_data.py` — strict $K > 20$ boundary (`19/20/21`), 4-way → 3-pair expansion, blank/missing/duplicate response edge cases, Turn-2/3/4 isolation, deterministic ID round-trip.
-2. `tests/test_encoder.py` — strict freezing of ModernBERT (`requires_grad == False`, unchanged weights, `grad is None`), exact equivalence between online frozen pass and cached CLS embeddings, empty/long-text truncation, rank shapes $d \in \{2, 8, 32\}$.
-3. `tests/test_ref_policy.py` — prompt-token masking verified against brute-force token-by-token autoregressive log-probs on `SmolLM2-135M`, valid simplex & log-sum-exp numerical stability on extreme log-probs (`-5000`), single-candidate edge case, entropy/collapse diagnostics.
-4. `tests/test_user_bt.py` — shift invariance & label-flip symmetry, synthetic 2-type heterogeneous recovery (rank-2 >98% vs. shared-$\bar{w}$ ~50%), global affine normalization invariants + constant-score `0/0` guard, L2 weight-decay shrinkage monotonicity.
-5. `tests/test_mythical_bt.py` — Gibbs extremes ($\lambda \to \infty \Rightarrow \pi_{\mathrm{ref}}$, $\lambda \to 0^+ \Rightarrow \arg\max r_{\mathrm{MLE}}$ with proportional tie-splitting), KL monotonicity in $\lambda$, $\beta_{\mathrm{BT}}$ resampling extremes ($\beta_{\mathrm{BT}} = 0 \to 0.5$ win-rate, $\beta_{\mathrm{BT}} = 100 \to$ deterministic, seed reproducibility).
-6. `tests/test_distortion.py` — 1D bisection vs. `scipy.optimize.minimize` (`< 1e-7`), $\tau = 0 \Rightarrow \mathrm{dist} = 1$, large $\tau \Rightarrow \max_y \mathrm{AvgUtil}(y)$, tied optimal responses, homogeneous population ($\mathrm{dist} = 1$ for all $\lambda$), universal $\mathrm{dist} \ge 1$ invariant, zero-denominator guard, and **exact reproduction of Theorem 6 (Appendix E.2)** showing exponential distortion in $\beta_{\mathrm{BT}}$.
-7. `tests/test_e2e_smoke.py` — end-to-end local CPU smoke test (Phases 1 → 4A) on a tiny deterministic fixture with online frozen ModernBERT + `SmolLM2-135M`, verifying finite metrics and plot generation.
-
----
-
-## Active Roadmap (Focused Through Phase 4A)
-
-### Phase 0: Environment & Local Test Harness
-- [x] Upgrade `transformers >= 4.48.0` (`4.49.0`) and install `pytest` (`9.2.0`) in `.da5453`.
-- [x] Verify loading `answerdotai/ModernBERT-base` and `HuggingFaceTB/SmolLM2-135M` locally on CPU.
-
-### Phase 1: Turn-1 Dataset Construction & Selection Audit
-- [x] Implement `src/data.py` + `tests/test_data.py`.
-- [x] Run Turn-1 dataset selection audit (`audit_turn1_dataset.py` → `results/turn1_selection_audit.json`).
-- [x] Finalized prompt cutoff **$M \ge 20$** (520 prompts, 10,851 unique `(x, y)`) and $\mathrm{AvgUtil}$ population scope (**all 839 retained users**).
-- [x] Pinned critical dependencies in `requirements.txt` (`transformers>=4.48.0,<5.0`, `tokenizers>=0.21.0,<0.22.0`, etc.).
-
-### Phase 2: Frozen ModernBERT Feature Pipeline & Reference Policy $\pi_{\mathrm{ref}}$
-- [x] Implement `src/encoder.py` + `tests/test_encoder.py` (frozen ModernBERT + linear head $W$, supporting online mode and frozen CLS cache mode).
-- [x] Implement `src/ref_policy.py` + `tests/test_ref_policy.py` (completion log-probs $\sum_t \log p_{\pi_0}(y_t \mid x, y_{<t})$ normalized over $\mathcal{A}(x)$ + entropy/collapse diagnostics).
-
-### Phase 3: Individual User-Wise Bradley–Terry Models & Quality Analysis
-- [x] Implement `src/user_bt.py` + `tests/test_user_bt.py` (unconstrained bilinear logits $s_i(x, y) = \langle w_i, W\psi(x, y) \rangle$, global affine normalization to $[0, 1]$, implied $\beta_{\mathrm{BT}}^{\mathrm{nat}} = s_{\max} - s_{\min}$).
-- [x] Implement Phase 3 training & diagnostic script `run_phase3_user_bt.py` with `--weight-decays` sweep (`[1e-3, 1e-2, 1e-1, 1.0]`), `--mode local-test` on CPU, and `--mode full` with `bf16` CUDA autocast on cloud GPU.
-- [x] Verified `run_phase3_user_bt.py --mode local-test` on real Community Alignment slice (16 users, 6 prompts, 165 unique `(x, y)`, 212 pairs; 44.4s using cached ModernBERT CLS features) → `results/phase3_local_test/phase3_user_bt_diagnostics.png`:
-  - `Shared (best wd=1e-3)`: `val_acc = 0.821`, `val_loss = 0.344`.
-  - `UserBT (d=2, best wd=1.0)`: `val_acc = 0.718`, `val_loss = 0.639`, `beta_nat = 49.9`.
-  - `UserBT (d=8, best wd=1.0)`: `val_acc = 0.821`, `val_loss = 0.345`, `beta_nat = 33.0`, `med_top1_maj = 0.25`.
-  - `UserBT (d=32, best wd=1.0)`: `val_acc = 0.897`, `val_loss = 0.245` (down from `0.325` before WD sweep), `val_brier = 0.077`, `beta_nat = 42.5`, `med_top1_maj = 0.28`.
-- [ ] Run `run_phase3_user_bt.py --mode full --device cuda` on cloud GPU (A100/H100) for all 839 users & 79,323 pairs and inspect full-scale Phase 3 diagnostics.
-
-### Phase 4A: Mythical-User BT Policy, $\beta_{\mathrm{BT}}$ Resampling & KL-Constrained Distortion
-- [x] Implement `src/mythical_bt.py` + `tests/test_mythical_bt.py`.
-- [x] Implement `src/distortion.py` + `tests/test_distortion.py` (including Theorem 6 synthetic verification).
-- [x] Implement `tests/test_e2e_smoke.py` and verify full local CPU pass (21/21 passing).
-- [x] Implement standalone Phase 4A runner `run_phase4a_distortion.py` (`--mode local-test` with `SmolLM2-135M`; `--mode full` with `Qwen/Qwen3.5-0.8B`; supports raw `llm`, `llm_len_norm`, and `uniform` $\pi_{\mathrm{ref}}$ ablations + $\pi_{\mathrm{ref}}$ collapse diagnostics).
-- [x] Verified `run_phase4a_distortion.py --mode local-test --also-len-norm-ref --also-uniform-ref` on real slice → `results/phase4a_local_test/`:
-  - **Key finding on $\pi_{\mathrm{ref}}$**: raw unnormalized completion log-probs $\sum_t \log p(y_t \mid x, y_{<t})$ with `SmolLM2-135M` suffered **severe length-bias collapse** (`4/6` prompts collapsed to `max_prob = 1.000`, `median_norm_entropy = 0.000`, pushing `max_tau` to `75–159 nats`), whereas length-normalized log-probs $\frac{1}{T}\sum_t \log p(y_t \mid x, y_{<t})$ gave well-calibrated support (`0/6` collapsed, `median_norm_entropy = 0.982`, `max_tau = 3.4–4.9 nats`, empirical distortion up to `1.37`). Track both raw and length-normalized $\pi_{\mathrm{ref}}$ in the cloud `Qwen/Qwen3.5-0.8B` run and report this practical artifact.
-- [ ] Run `run_phase4a_distortion.py --mode full --device cuda --llm Qwen/Qwen3.5-0.8B --also-len-norm-ref --also-uniform-ref` on cloud GPU (520 prompts, 839 users).
-
----
-
-### Deferred (After Phase 4A Analysis)
-- **Phase 4B — DPO Finetuning**: Train $\pi_{\mathrm{DPO}}$ with `trl.DPOTrainer` (local smoke test with `SmolLM2-135M`; cloud multi-seed runs on `Qwen/Qwen3.5-0.8B`, then 4B scale-up) and compare empirical DPO distortion against Phase 4A and Theorem 6.
-- **Qualitative User-Space PCA Evaluation (`run_qualitative_pca.py`)**: Ready — selects top-10 highest & top-10 lowest distortion queries, projects all dataset candidate responses through frozen `ModernBERT-base` + trained linear head $W$ into 2D PCA space (colored by query distortion), generates $k$ completions from the DPO-trained LM (and optional base/ref LM), and projects them onto the exact same principal components to visualize before-vs-after DPO distributional shift. Verified locally with `tests/test_qualitative_pca.py` and `--mode local-test`.
+- [x] **Phase 0–2**: Environment, Turn-1 dataset construction, frozen ModernBERT encoder, chunked PEFT-aware `ref_policy.py` (all unit tests passing: **29 total tests** across 9 test files).
+- [x] **Phase 3 (Full Cloud Run Complete)**: `results/phase3/` (`rank=128, wd=1.0, val_acc=78.03%`).
+- [x] **Qualitative Analysis (Dataset Contours Complete)**: `results/qualitative_pca/` (`rank=128`, 520 prompts, 3,540 plotted responses).
+- [x] **$\beta_{\mathrm{BT}}$ Recovery Sanity Check Complete**: `results/beta_recovery_check/beta_recovery_full_rank32.csv`.
+- [x] **Phase 4A & 4B Code + Local CPU Verification Complete**: `run_phase4a_distortion.py`, `run_phase4b_dpo.py`, `src/dpo.py`, `tests/test_dpo.py`.
+- [ ] **Cloud Run — Phase 4A (Full)**: Run `run_phase4a_distortion.py --mode full --device cuda --llm Qwen/Qwen3.5-0.8B --also-len-norm-ref --also-uniform-ref` (now OOM-safe on T4).
+- [ ] **Cloud Run — Phase 4B (Full DPO)**: Run `run_phase4b_dpo.py --mode full --device cuda --llm Qwen/Qwen3.5-0.8B` (observed multi-seed sweep + resampled $\beta_{\mathrm{BT}}$ sweep, saving LoRA adapters).
+- [ ] **Qualitative DPO Shift**: Run `run_qualitative_pca.py --mode full --device cuda --dpo-model <adapter_dir> --ref-model Qwen/Qwen3.5-0.8B` to project before-vs-after DPO generations onto the PCA & 1D consensus distributions.
+- [ ] **Scale-up & Report**: Optional 4B DPO scale-up check, then populate Section 4 (Results) & Section 5 (Discussion) of `../LHP_Report/main.tex`.

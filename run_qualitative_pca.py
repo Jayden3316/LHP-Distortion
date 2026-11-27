@@ -415,23 +415,42 @@ def plot_qualitative_pca(
         ax_cent.set_title("(B) Within-Prompt Response Spread $\\Delta\\phi(x, y) = \\phi(x, y) - \\bar{\\phi}(x)$", fontweight="bold")
         ax_cent.legend(fontsize=8.2, frameon=True, loc="best")
 
-        # --- Panel C: Consensus vs. Top User-Disagreement (Polarization) Plane ---
-        ax_pol.scatter(ds_lo["consensus_axis"], ds_lo["polarization_axis"], color="#2563eb", s=pt_size, alpha=0.18, edgecolors="none")
-        ax_pol.scatter(ds_hi["consensus_axis"], ds_hi["polarization_axis"], color="#dc2626", s=pt_size, alpha=0.24, edgecolors="none")
-        _add_kde_contours(ax_pol, ds_lo["consensus_axis"], ds_lo["polarization_axis"], color="#1d4ed8", label="Low-distortion prompts")
-        _add_kde_contours(ax_pol, ds_hi["consensus_axis"], ds_hi["polarization_axis"], color="#dc2626", label="High-distortion prompts")
+        # --- Panel C: 1D Histogram + KDE along Consensus Direction (Low vs. High Distortion) ---
+        lo_vals = ds_lo["consensus_axis"].dropna().to_numpy(dtype=np.float64)
+        hi_vals = ds_hi["consensus_axis"].dropna().to_numpy(dtype=np.float64)
+        all_cons = np.concatenate([lo_vals, hi_vals])
+        x_lo, x_hi = np.percentile(all_cons, [0.5, 99.5])
+        bins_1d = np.linspace(x_lo, x_hi, 42)
+        grid_1d = np.linspace(x_lo, x_hi, 300)
+
+        ax_pol.hist(
+            lo_vals, bins=bins_1d, density=True, color="#2563eb", alpha=0.28,
+            edgecolor="#1d4ed8", linewidth=0.6, label=f"Low-distortion hist (n={len(lo_vals):,})",
+        )
+        ax_pol.hist(
+            hi_vals, bins=bins_1d, density=True, color="#dc2626", alpha=0.28,
+            edgecolor="#b91c1c", linewidth=0.6, label=f"High-distortion hist (n={len(hi_vals):,})",
+        )
+        if lo_vals.size >= 10 and np.std(lo_vals) > 1e-8:
+            kde_lo = gaussian_kde(lo_vals)
+            ax_pol.plot(grid_1d, kde_lo(grid_1d), color="#1d4ed8", lw=2.3, label="Low-distortion KDE")
+        if hi_vals.size >= 10 and np.std(hi_vals) > 1e-8:
+            kde_hi = gaussian_kde(hi_vals)
+            ax_pol.plot(grid_1d, kde_hi(grid_1d), color="#dc2626", lw=2.3, label="High-distortion KDE")
+
         if len(dpo_sub) > 0:
-            ax_pol.scatter(
-                dpo_sub["consensus_axis"], dpo_sub["polarization_axis"], c=dpo_sub["query_distortion"], cmap=cmap, norm=norm,
-                s=105, alpha=0.95, marker="*", edgecolors="black", linewidths=0.7, label=f"DPO gens (n={len(dpo_sub)})",
-            )
+            dpo_vals = dpo_sub["consensus_axis"].dropna().to_numpy(dtype=np.float64)
+            if dpo_vals.size >= 5 and np.std(dpo_vals) > 1e-8:
+                kde_dpo = gaussian_kde(dpo_vals)
+                ax_pol.plot(grid_1d, kde_dpo(grid_1d), color="#0f172a", ls="--", lw=2.0, label=f"DPO gens KDE (n={len(dpo_vals)})")
+            elif dpo_vals.size > 0:
+                ax_pol.axvline(float(np.mean(dpo_vals)), color="#0f172a", ls="--", lw=1.8, label=f"DPO gens mean (n={len(dpo_vals)})")
+
         ax_pol.axvline(0.0, color="#64748b", ls=":", lw=1.0)
-        ax_pol.axhline(0.0, color="#64748b", ls=":", lw=1.0)
-        ax_pol.set_xlim(np.percentile(ds_sub["consensus_axis"], [1, 99]) * 1.18)
-        ax_pol.set_ylim(np.percentile(ds_sub["polarization_axis"], [1, 99]) * 1.18)
+        ax_pol.set_xlim(x_lo, x_hi)
         ax_pol.set_xlabel("Consensus Direction $\\langle \\hat{\\bar{w}}, \\Delta\\phi(x, y) \\rangle$ (Utilitarian Agreement)", fontsize=9.8)
-        ax_pol.set_ylabel("Top Polarization Axis $\\langle \\hat{v}_1(W - \\bar{w}), \\Delta\\phi(x, y) \\rangle$", fontsize=9.8)
-        ax_pol.set_title("(C) Consensus vs. User-Polarization Plane (KDE Contours)", fontweight="bold")
+        ax_pol.set_ylabel("Density", fontsize=10)
+        ax_pol.set_title("(C) Consensus Score Distribution: Low vs. High Distortion", fontweight="bold")
         ax_pol.legend(fontsize=8.2, frameon=True, loc="best")
 
         # --- Panel D: Prompt-Level Polarization vs. Distortion across all eval prompts ---
