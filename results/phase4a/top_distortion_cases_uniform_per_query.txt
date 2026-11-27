@@ -1,0 +1,61 @@
+=== Qualitative Inspection: Top-3 Highest-Distortion Queries (all resampled beta_BT) ===
+
+------------------------------------------------------------------------------------------------
+[Case #1] prompt_idx=7022 | beta_BT=0.5, lam=0.02, tau=1.964 nats | distortion=28.287 (opt_util=0.613 vs policy_util=0.022)
+Prompt (29 annotators, |A(x)|=8 candidates):
+  What role can a hospitality professional in the US play in disaster management and response efforts?
+User Utility Stats across 839 users: AvgUtil range=[0.010, 0.614] (ceiling=59.01), mean cross-user std=0.067, distinct top-1 responses=4/8
+pi_ref Stats: norm_entropy=1.000, max_prob=0.1250, min_prob=0.1250, effective_support=8.0/8
+Key Candidate Responses:
+  * cand#1   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.614 (user_std=0.135, user_top1=80.3%) | r_MLE=-1.915 | len=252 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.0000  vs  pi*=0.9754
+      Text: A hospitality professional in the US can play a significant role in disaster management and response efforts. Hotels, restaurants, and other hospitality establishments often serve as temporary shelters, food providers, and communication hubs during disasters. ...
+  * cand#6   [TOP pi_RLHF (mythical)]
+      AvgUtil=0.010 (user_std=0.022, user_top1=0.0%) | r_MLE=-1.516 | len=132 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.9764  vs  pi*=0.0000
+      Text: In the event of a disaster, hospitality professionals in the US can leverage their skills and resources to support response and recovery efforts in innovative and impactful ways. They can partner with emergency management agencies to develop and implement disa...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.060 (user_std=0.052, user_top1=0.0%) | r_MLE=-1.712 | len=76 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.0001  vs  pi*=0.0000
+      Text: A hospitality professional in the US can play a crucial role in disaster management and response efforts by providing shelter, food, and emotional support to affected individuals. They can also assist with evacuation efforts, communicate with emergency service...
+
+------------------------------------------------------------------------------------------------
+[Case #2] prompt_idx=7613 | beta_BT=0.5, lam=0.02, tau=2.485 nats | distortion=21.265 (opt_util=0.547 vs policy_util=0.026)
+Prompt (29 annotators, |A(x)|=12 candidates):
+  Who wrote the novel 'Pride and Prejudice'?
+User Utility Stats across 839 users: AvgUtil range=[0.026, 0.547] (ceiling=21.27), mean cross-user std=0.090, distinct top-1 responses=5/12
+pi_ref Stats: norm_entropy=1.000, max_prob=0.0833, min_prob=0.0833, effective_support=12.0/12
+Key Candidate Responses:
+  * cand#11  [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.547 (user_std=0.156, user_top1=78.2%) | r_MLE=-1.775 | len=249 tok
+      pi_ref=0.0833  ->  pi_RLHF=0.0000  vs  pi*=1.0000
+      Text: The novel 'Pride and Prejudice' was written by the renowned English author Jane Austen. Published in 1813, it is one of her most famous works and a timeless classic in English literature. The novel follows the lives of the Bennett sisters, particularly Elizabe...
+  * cand#3   [TOP pi_RLHF (mythical)]
+      AvgUtil=0.026 (user_std=0.044, user_top1=0.2%) | r_MLE=-1.532 | len=4 tok
+      pi_ref=0.0833  ->  pi_RLHF=1.0000  vs  pi*=0.0000
+      Text: Jane Austen.
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.166 (user_std=0.073, user_top1=0.0%) | r_MLE=-2.031 | len=81 tok
+      pi_ref=0.0833  ->  pi_RLHF=0.0000  vs  pi*=0.0000
+      Text: Jane Austen is credited with authoring 'Pride and Prejudice', a seminal work of English literature that has captivated readers for centuries with its nuanced portrayal of love, societal pressures, and personal growth. The novel's exploration of themes such as ...
+
+------------------------------------------------------------------------------------------------
+[Case #3] prompt_idx=5957 | beta_BT=0.5, lam=0.02, tau=1.792 nats | distortion=10.061 (opt_util=0.446 vs policy_util=0.044)
+Prompt (29 annotators, |A(x)|=8 candidates):
+  What are the best museums in Lyon for learning about the city's history?
+User Utility Stats across 839 users: AvgUtil range=[0.000, 0.462] (ceiling=1726.95), mean cross-user std=0.053, distinct top-1 responses=3/8
+pi_ref Stats: norm_entropy=1.000, max_prob=0.1250, min_prob=0.1250, effective_support=8.0/8
+Key Candidate Responses:
+  * cand#1   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.462 (user_std=0.176, user_top1=88.1%) | r_MLE=-1.518 | len=117 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.0010  vs  pi*=0.9484
+      Text: Lyon has several museums that showcase its rich history. The best ones include:  1. Musée Gadagne: Focuses on Lyon's history and puppetry. 2. Musée des Beaux-Arts: Features art and artifacts from ancient to modern times. 3. Musée de la Civilisation Gallo-Romai...
+  * cand#7   [TOP pi_RLHF (mythical)]
+      AvgUtil=0.036 (user_std=0.015, user_top1=0.0%) | r_MLE=-1.381 | len=111 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.9383  vs  pi*=0.0020
+      Text: To truly grasp Lyon's history, one should explore the museums that highlight its cultural and industrial heritage. The Musée des Arts Décoratifs showcases the city's renowned silk production and features exquisite examples of textile art. The Musée Lumière, de...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.195 (user_std=0.044, user_top1=11.7%) | r_MLE=-1.448 | len=118 tok
+      pi_ref=0.1250  ->  pi_RLHF=0.0326  vs  pi*=0.0197
+      Text: For an immersive experience into Lyon's history, consider visiting museums that are themselves historical landmarks. The Basilica of Notre-Dame de Fourvière, while not a traditional museum, houses a museum within its walls that explores the history of the basi...

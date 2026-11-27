@@ -1,0 +1,31 @@
+{
+  "mode": "full",
+  "checkpoint": "user_bt_best.pt",
+  "distortion_source": "phase4a_distortion_llm_len_norm_per_query.csv",
+  "dpo_model": null,
+  "ref_model": null,
+  "user_bt_rank": 8,
+  "num_eval_prompts": 520,
+  "n_high_queries": 100,
+  "n_low_queries": 100,
+  "num_dataset_responses_plotted": 4035,
+  "k_generations": 0,
+  "pca_explained_variance_ratio": [
+    0.6836,
+    0.145
+  ],
+  "centered_pca_explained_variance_ratio": [
+    0.7814,
+    0.1086
+  ],
+  "spearman_fragmentation_vs_distortion": {
+    "rho": -0.0156,
+    "p": 0.7231277864257284
+  },
+  "spearman_user_std_vs_distortion": {
+    "rho": 0.0861,
+    "p": 0.04967929995744332
+  },
+  "centroid_shifts": {},
+  "elapsed_seconds": 7.18
+}

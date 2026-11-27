@@ -1,61 +1,53 @@
 === Qualitative Inspection: Top-3 Highest-Distortion Queries (all resampled beta_BT) ===
 
 ------------------------------------------------------------------------------------------------
-[Case #1] prompt_idx=3996 | beta_BT=1, lam=0.02, tau=47.568 nats | distortion=5.706 (opt_util=0.180 vs policy_util=0.032)
-Prompt (22 annotators, |A(x)|=4 candidates):
-  I'm planning a reunion and want to set a realistic timeline and budget for the event.
-User Utility Stats across 839 users: AvgUtil range=[0.031, 0.265] (ceiling=8.50), mean cross-user std=0.104, distinct top-1 responses=4/4
-pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/4
-Key Candidate Responses:
-  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
-      AvgUtil=0.131 (user_std=0.091, user_top1=15.0%) | r_MLE=+0.841 | len=103 tok
-      pi_ref=1.0000  ->  pi_RLHF=0.0045  vs  pi*=0.6315
-      Text: Establishing a realistic timeline and budget for the reunion requires careful planning. Start by setting a date and creating a guest list to determine the venue and catering needs. Allocate 6-12 months for planning, with milestones for venue booking, entertain...
-  * cand#3   [MAX AvgUtil]
-      AvgUtil=0.265 (user_std=0.180, user_top1=72.2%) | r_MLE=+2.781 | len=276 tok
-      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.3685
-      Text: To set a realistic timeline and budget, consider the following steps:  1. **Define the event scope**: Determine the type of reunion, number of guests, and preferred date. 2. **Set a budget range**: Estimate costs for venue, food, entertainment, and other expen...
-  * cand#2   [TOP pi_RLHF (mythical)]
-      AvgUtil=0.031 (user_std=0.067, user_top1=6.9%) | r_MLE=+1.906 | len=106 tok
-      pi_ref=0.0000  ->  pi_RLHF=0.9955  vs  pi*=0.0000
-      Text: The key to a successful reunion is flexibility and open communication. Rather than focusing solely on budget and timeline, consider the overall experience and what will make the event meaningful for attendees. Set a rough outline of activities and amenities, t...
-
-------------------------------------------------------------------------------------------------
-[Case #2] prompt_idx=3394 | beta_BT=0.5, lam=0.02, tau=48.570 nats | distortion=5.143 (opt_util=0.211 vs policy_util=0.041)
-Prompt (35 annotators, |A(x)|=8 candidates):
-  I want to create a home maintenance schedule and set reminders for regular tasks.
-User Utility Stats across 839 users: AvgUtil range=[0.041, 0.277] (ceiling=6.79), mean cross-user std=0.146, distinct top-1 responses=8/8
-pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/8
-Key Candidate Responses:
-  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
-      AvgUtil=0.191 (user_std=0.133, user_top1=15.7%) | r_MLE=-1.030 | len=77 tok
-      pi_ref=1.0000  ->  pi_RLHF=0.0016  vs  pi*=0.7639
-      Text: Create a schedule with monthly, quarterly, and annual tasks. Set reminders for:  * Monthly: Check smoke detectors, clean air filters, inspect plumbing * Quarterly: Inspect HVAC, clean gutters, check roof for damage * Annually: Inspect electrical systems, servi...
-  * cand#6   [MAX AvgUtil]
-      AvgUtil=0.277 (user_std=0.188, user_top1=17.9%) | r_MLE=-0.274 | len=265 tok
-      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.0000
-      Text: Creating a home maintenance schedule is a great way to stay on top of regular tasks and prevent potential issues. Here's a suggested schedule to get you started:  **Monthly Tasks:**  * Check and replace air filters * Inspect and clean gutters and downspouts * ...
-  * cand#7   [TOP pi_RLHF (mythical)]
-      AvgUtil=0.041 (user_std=0.087, user_top1=4.4%) | r_MLE=+0.072 | len=119 tok
-      pi_ref=0.0000  ->  pi_RLHF=0.9984  vs  pi*=0.0000
-      Text: Prioritizing sustainability and environmental responsibility, a home maintenance schedule should focus on energy efficiency and waste reduction. Begin by conducting an energy audit to identify areas of improvement, such as sealing air leaks or upgrading to ene...
-
-------------------------------------------------------------------------------------------------
-[Case #3] prompt_idx=5066 | beta_BT=1, lam=0.02, tau=23.019 nats | distortion=4.613 (opt_util=0.301 vs policy_util=0.065)
+[Case #1] prompt_idx=3941 | beta_BT=1, lam=0.02, tau=0.081 nats | distortion=54.059 (opt_util=0.028 vs policy_util=0.001)
 Prompt (30 annotators, |A(x)|=16 candidates):
-  Plan a 7-day trip to the Swiss Alps for skiing and relaxation.
-User Utility Stats across 839 users: AvgUtil range=[0.065, 0.316] (ceiling=4.84), mean cross-user std=0.138, distinct top-1 responses=16/16
-pi_ref Stats: norm_entropy=0.000, max_prob=1.0000, min_prob=0.0000, effective_support=1.0/16
+  I'm looking for some unique shopping experiences in Curitiba, what are some recommendations?
+User Utility Stats across 839 users: AvgUtil range=[0.000, 0.789] (ceiling=788824001163.06), mean cross-user std=0.058, distinct top-1 responses=4/16
+pi_ref Stats: norm_entropy=0.113, max_prob=0.9056, min_prob=0.0000, effective_support=1.4/16
 Key Candidate Responses:
-  * cand#1   [TOP pi* (KL-ball opt), TOP pi_ref]
-      AvgUtil=0.299 (user_std=0.187, user_top1=26.6%) | r_MLE=+0.584 | len=117 tok
-      pi_ref=1.0000  ->  pi_RLHF=0.0000  vs  pi*=0.8810
-      Text: Day 1-2: Arrive in Zurich, transfer to Interlaken. Ski at Jungfraujoch or Grindelwald.  Day 3-4: Move to Zermatt, ski at Matterhorn or Rothorn. Enjoy scenic village views.  Day 5: Relax at a spa in Zermatt or take a scenic train ride to Gornergrat.  Day 6-7: S...
-  * cand#8   [MAX AvgUtil]
-      AvgUtil=0.316 (user_std=0.149, user_top1=11.8%) | r_MLE=+2.186 | len=245 tok
-      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.1190
-      Text: For a 7-day trip to the Swiss Alps, consider the following itinerary:  Day 1-2: Arrive in Interlaken and check into a hotel. Spend the first day exploring the town and getting accustomed to the altitude. On the second day, head to the nearby Jungfraujoch, also...
-  * cand#12  [TOP pi_RLHF (mythical)]
-      AvgUtil=0.065 (user_std=0.103, user_top1=3.8%) | r_MLE=+1.740 | len=127 tok
-      pi_ref=0.0000  ->  pi_RLHF=1.0000  vs  pi*=0.0000
-      Text: Sustainability should be at the forefront of any travel plan, especially when visiting sensitive ecosystems like the Swiss Alps. Consider offsetting your carbon footprint by choosing eco-friendly accommodations, such as hotels powered by renewable energy or lo...
+  * cand#1   [TOP pi* (KL-ball opt), TOP pi_RLHF (mythical), TOP pi_ref]
+      AvgUtil=0.000 (user_std=0.000, user_top1=0.0%) | r_MLE=-1.135 | len=68 tok
+      pi_ref=0.9056  ->  pi_RLHF=0.9957  vs  pi*=0.7687
+      Text: Curitiba's emphasis on sustainability and community is evident in its shopping experiences. Many local businesses prioritize eco-friendliness and social responsibility, making it easy for consumers to make conscious choices. From artisanal markets showcasing h...
+  * cand#5   [MAX AvgUtil]
+      AvgUtil=0.789 (user_std=0.089, user_top1=90.1%) | r_MLE=-0.778 | len=253 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.0000
+      Text: Curitiba, a city in southern Brazil, offers a mix of traditional and modern shopping experiences. For a unique shopping experience, consider visiting the following places:  1. **Feira do Largo da Ordem**: This bustling market takes place every Sunday and featu...
+
+------------------------------------------------------------------------------------------------
+[Case #2] prompt_idx=6013 | beta_BT=1, lam=0.02, tau=4.056 nats | distortion=15.204 (opt_util=0.129 vs policy_util=0.008)
+Prompt (26 annotators, |A(x)|=20 candidates):
+  What are the best villages to visit in the Lot Valley?
+User Utility Stats across 839 users: AvgUtil range=[0.008, 0.748] (ceiling=90.55), mean cross-user std=0.054, distinct top-1 responses=3/20
+pi_ref Stats: norm_entropy=0.028, max_prob=0.9832, min_prob=0.0000, effective_support=1.1/20
+Key Candidate Responses:
+  * cand#2   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.081 (user_std=0.031, user_top1=0.0%) | r_MLE=-0.825 | len=93 tok
+      pi_ref=0.9832  ->  pi_RLHF=0.0030  vs  pi*=0.5904
+      Text: For those seeking an authentic experience in the Lot Valley, consider exploring the lesser-known villages that dot the landscape. The village of Vers, with its picturesque surroundings and tranquil atmosphere, is perfect for nature lovers and those looking to ...
+  * cand#5   [MAX AvgUtil]
+      AvgUtil=0.748 (user_std=0.091, user_top1=48.0%) | r_MLE=-0.055 | len=267 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.0000
+      Text: The Lot Valley in southwestern France is a picturesque region filled with charming villages, medieval towns, and stunning natural scenery. Some of the best villages to visit in the Lot Valley include:  * Saint-Cirq-Lapopie: A medieval village perched on a clif...
+  * cand#16  [TOP pi_RLHF (mythical)]
+      AvgUtil=0.008 (user_std=0.020, user_top1=0.0%) | r_MLE=-0.627 | len=82 tok
+      pi_ref=0.0168  ->  pi_RLHF=0.9970  vs  pi*=0.0000
+      Text: To truly experience the essence of the Lot Valley, one must venture off the beaten path and discover its hidden gems. The village of Vers, with its tranquil atmosphere and picturesque landscapes, is an ideal destination for those seeking relaxation and rejuven...
+
+------------------------------------------------------------------------------------------------
+[Case #3] prompt_idx=5992 | beta_BT=0.5, lam=0.02, tau=0.010 nats | distortion=13.051 (opt_util=0.008 vs policy_util=0.001)
+Prompt (29 annotators, |A(x)|=20 candidates):
+  What are the best restaurants in the Italian Riviera?
+User Utility Stats across 839 users: AvgUtil range=[0.001, 0.643] (ceiling=1178.80), mean cross-user std=0.043, distinct top-1 responses=3/20
+pi_ref Stats: norm_entropy=0.014, max_prob=0.9927, min_prob=0.0000, effective_support=1.0/20
+Key Candidate Responses:
+  * cand#7   [TOP pi* (KL-ball opt), TOP pi_RLHF (mythical), TOP pi_ref]
+      AvgUtil=0.001 (user_std=0.004, user_top1=0.0%) | r_MLE=-1.494 | len=75 tok
+      pi_ref=0.9927  ->  pi_RLHF=0.9998  vs  pi*=0.9777
+      Text: Sustainability and eco-friendliness are increasingly important considerations when choosing where to dine. The Italian Riviera is home to several restaurants that prioritize environmentally responsible practices without compromising on flavor or quality. One s...
+  * cand#11  [MAX AvgUtil]
+      AvgUtil=0.643 (user_std=0.126, user_top1=70.2%) | r_MLE=-1.391 | len=100 tok
+      pi_ref=0.0000  ->  pi_RLHF=0.0000  vs  pi*=0.0000
+      Text: The Italian Riviera offers a variety of excellent restaurants. Some top recommendations include:  1. Ristorante La Pineta in Sestri Levante, known for its seafood. 2. Ristorante Del Cambio in Genoa, serving traditional Ligurian cuisine. 3. La Cucina di Nonna N...

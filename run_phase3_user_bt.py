@@ -353,26 +353,23 @@ def main() -> None:
 
     # 3A-1. Shared mythical-user LINEAR baseline (hidden_dim -> 1) across weight_decays
     hidden_dim = int(feats.shape[1])
+    use_mean_centered = args.prior == "mean-centered"
     best_myth_row = None
-    best_myth_state = None
+    best_myth_wd = None
+    best_myth_val_margins = None
     for wd in args.weight_decays:
-        myth_full, _ = fit_mythical_bt(
-            feats, ds.pairs, lr=args.lr, weight_decay=wd, epochs=epochs, batch_size=train_bs, seed=args.seed, device=device
-        )
-        _, myth_full_m = evaluate_margins(myth_full, feats, ds.pairs, device)
-
         myth_tr, _ = fit_mythical_bt(
             feats, train_pairs, lr=args.lr, weight_decay=wd, epochs=epochs, batch_size=train_bs, seed=args.seed, device=device
         )
         _, myth_tr_m = evaluate_margins(myth_tr, feats, train_pairs, device)
-        _, myth_val_m = evaluate_margins(myth_tr, feats, val_pairs, device)
+        myth_val_margins, myth_val_m = evaluate_margins(myth_tr, feats, val_pairs, device)
 
         row = {
             "model": f"Shared Linear ({hidden_dim}->1)",
             "rank": 0,
             "weight_decay": wd,
-            "full_loss": myth_full_m["loss"],
-            "full_acc": myth_full_m["acc"],
+            "full_loss": float("nan"),
+            "full_acc": float("nan"),
             "train_loss": myth_tr_m["loss"],
             "train_acc": myth_tr_m["acc"],
             "val_loss": myth_val_m["loss"],
@@ -385,34 +382,31 @@ def main() -> None:
         all_rows.append(row)
         if best_myth_row is None or row["val_loss"] < best_myth_row["val_loss"]:
             best_myth_row = row
-            best_myth_state = {"state_dict": myth_full.state_dict(), "hidden_dim": hidden_dim, "weight_decay": wd}
+            best_myth_wd = wd
+            best_myth_val_margins = myth_val_margins
 
-    assert best_myth_row is not None and best_myth_state is not None
+    assert best_myth_row is not None and best_myth_wd is not None and best_myth_val_margins is not None
+    myth_full, _ = fit_mythical_bt(
+        feats, ds.pairs, lr=args.lr, weight_decay=best_myth_wd, epochs=epochs, batch_size=train_bs, seed=args.seed, device=device
+    )
+    _, myth_full_m = evaluate_margins(myth_full, feats, ds.pairs, device)
+    best_myth_row["full_loss"] = myth_full_m["loss"]
+    best_myth_row["full_acc"] = myth_full_m["acc"]
+    best_myth_state = {"state_dict": myth_full.state_dict(), "hidden_dim": hidden_dim, "weight_decay": best_myth_wd}
     torch.save(best_myth_state, out_dir / "mythical_bt_best.pt")
     best_per_family_rows.append(best_myth_row)
     print(
         f"  Shared Linear ({hidden_dim}->1, best wd={best_myth_row['weight_decay']:g}): "
         f"train_acc={best_myth_row['train_acc']:.4f}, full_acc={best_myth_row['full_acc']:.4f}, "
-        f"val_acc={best_myth_row['val_acc']:.4f}, val_loss={best_myth_row['val_loss']:.4f}, val_brier={best_myth_row['val_brier']:.4f}"
+        f"val_acc={best_myth_row['val_acc']:.4f}, val_loss={best_myth_row['val_loss']:.4f}, val_brier={best_myth_row['val_brier']:.4f}",
+        flush=True,
     )
 
     # 3A-2. Shared mythical-user MLP baseline (hidden_dim -> mlp_hidden -> 1) across weight_decays
     best_mlp_row = None
-    best_mlp_state = None
+    best_mlp_wd = None
+    best_mlp_val_margins = None
     for wd in args.weight_decays:
-        mlp_full, _ = fit_mythical_mlp_bt(
-            feats,
-            ds.pairs,
-            bottleneck_dim=args.mlp_hidden,
-            lr=args.lr,
-            weight_decay=wd,
-            epochs=epochs,
-            batch_size=train_bs,
-            seed=args.seed,
-            device=device,
-        )
-        _, mlp_full_m = evaluate_margins(mlp_full, feats, ds.pairs, device)
-
         mlp_tr, _ = fit_mythical_mlp_bt(
             feats,
             train_pairs,
@@ -425,14 +419,14 @@ def main() -> None:
             device=device,
         )
         _, mlp_tr_m = evaluate_margins(mlp_tr, feats, train_pairs, device)
-        _, mlp_val_m = evaluate_margins(mlp_tr, feats, val_pairs, device)
+        mlp_val_margins, mlp_val_m = evaluate_margins(mlp_tr, feats, val_pairs, device)
 
         row = {
             "model": f"Shared MLP ({hidden_dim}->{args.mlp_hidden}->1)",
             "rank": 0,
             "weight_decay": wd,
-            "full_loss": mlp_full_m["loss"],
-            "full_acc": mlp_full_m["acc"],
+            "full_loss": float("nan"),
+            "full_acc": float("nan"),
             "train_loss": mlp_tr_m["loss"],
             "train_acc": mlp_tr_m["acc"],
             "val_loss": mlp_val_m["loss"],
@@ -445,20 +439,37 @@ def main() -> None:
         all_rows.append(row)
         if best_mlp_row is None or row["val_loss"] < best_mlp_row["val_loss"]:
             best_mlp_row = row
-            best_mlp_state = {
-                "state_dict": mlp_full.state_dict(),
-                "hidden_dim": hidden_dim,
-                "bottleneck_dim": args.mlp_hidden,
-                "weight_decay": wd,
-            }
+            best_mlp_wd = wd
+            best_mlp_val_margins = mlp_val_margins
 
-    assert best_mlp_row is not None and best_mlp_state is not None
+    assert best_mlp_row is not None and best_mlp_wd is not None and best_mlp_val_margins is not None
+    mlp_full, _ = fit_mythical_mlp_bt(
+        feats,
+        ds.pairs,
+        bottleneck_dim=args.mlp_hidden,
+        lr=args.lr,
+        weight_decay=best_mlp_wd,
+        epochs=epochs,
+        batch_size=train_bs,
+        seed=args.seed,
+        device=device,
+    )
+    _, mlp_full_m = evaluate_margins(mlp_full, feats, ds.pairs, device)
+    best_mlp_row["full_loss"] = mlp_full_m["loss"]
+    best_mlp_row["full_acc"] = mlp_full_m["acc"]
+    best_mlp_state = {
+        "state_dict": mlp_full.state_dict(),
+        "hidden_dim": hidden_dim,
+        "bottleneck_dim": args.mlp_hidden,
+        "weight_decay": best_mlp_wd,
+    }
     torch.save(best_mlp_state, out_dir / "mythical_mlp_bt_best.pt")
     best_per_family_rows.append(best_mlp_row)
     print(
         f"  Shared MLP ({hidden_dim}->{args.mlp_hidden}->1, best wd={best_mlp_row['weight_decay']:g}): "
         f"train_acc={best_mlp_row['train_acc']:.4f}, full_acc={best_mlp_row['full_acc']:.4f}, "
-        f"val_acc={best_mlp_row['val_acc']:.4f}, val_loss={best_mlp_row['val_loss']:.4f}, val_brier={best_mlp_row['val_brier']:.4f}"
+        f"val_acc={best_mlp_row['val_acc']:.4f}, val_loss={best_mlp_row['val_loss']:.4f}, val_brier={best_mlp_row['val_brier']:.4f}",
+        flush=True,
     )
 
     # 3B. User-wise low-rank BT models across ranks x weight_decays
@@ -467,23 +478,10 @@ def main() -> None:
 
     for rank in ranks:
         best_rank_row = None
-        best_rank_ckpt = None
+        best_rank_wd = None
+        best_rank_val_margins = None
 
         for wd in args.weight_decays:
-            full_model, _ = fit_user_bt(
-                feats,
-                ds.pairs,
-                num_users=ds.num_users,
-                rank=rank,
-                lr=args.lr,
-                weight_decay=wd,
-                epochs=epochs,
-                batch_size=train_bs,
-                seed=args.seed,
-                device=device,
-            )
-            _, full_m = evaluate_margins(full_model, feats, ds.pairs, device)
-
             tr_model, _ = fit_user_bt(
                 feats,
                 train_pairs,
@@ -495,70 +493,132 @@ def main() -> None:
                 batch_size=train_bs,
                 seed=args.seed,
                 device=device,
+                mean_centered_prior=use_mean_centered,
+                shared_weight_decay=args.shared_weight_decay,
             )
             _, tr_m = evaluate_margins(tr_model, feats, train_pairs, device)
             val_margins, val_m = evaluate_margins(tr_model, feats, val_pairs, device)
-
-            with torch.no_grad():
-                raw_scores = full_model.score_all_users(feats.to(device)).cpu().numpy()
-            u_norm, beta_nat, s_min, s_max = global_affine_normalize(raw_scores)
-            het = compute_heterogeneity_stats(u_norm, ds, eval_prompt_indices)
 
             row = {
                 "model": f"UserBT (d={rank})",
                 "rank": rank,
                 "weight_decay": wd,
-                "full_loss": full_m["loss"],
-                "full_acc": full_m["acc"],
+                "full_loss": float("nan"),
+                "full_acc": float("nan"),
                 "train_loss": tr_m["loss"],
                 "train_acc": tr_m["acc"],
                 "val_loss": val_m["loss"],
                 "val_acc": val_m["acc"],
                 "val_brier": val_m["brier"],
-                "beta_bt_nat": beta_nat,
-                "mean_resp_user_std": het["mean_resp_user_std"],
-                "median_top1_majority_frac": het["median_top1_majority_frac"],
+                "beta_bt_nat": float("nan"),
+                "mean_resp_user_std": float("nan"),
+                "median_top1_majority_frac": float("nan"),
             }
             all_rows.append(row)
 
-            ckpt = {
-                "state_dict": full_model.state_dict(),
-                "num_users": ds.num_users,
-                "hidden_dim": hidden_dim,
-                "rank": rank,
-                "weight_decay": wd,
-                "beta_bt_nat": beta_nat,
-                "s_min": s_min,
-                "s_max": s_max,
-            }
             if best_rank_row is None or row["val_loss"] < best_rank_row["val_loss"]:
                 best_rank_row = row
-                best_rank_ckpt = ckpt
+                best_rank_wd = wd
+                best_rank_val_margins = val_margins
 
-            if val_m["loss"] < overall_best_val_loss:
-                overall_best_val_loss = val_m["loss"]
-                overall_best = {
-                    "rank": rank,
-                    "weight_decay": wd,
-                    "ckpt": ckpt,
-                    "u_norm": u_norm,
-                    "beta_nat": beta_nat,
-                    "het": het,
-                    "val_margins": val_margins,
-                }
+        assert best_rank_row is not None and best_rank_wd is not None and best_rank_val_margins is not None
+        full_model, _ = fit_user_bt(
+            feats,
+            ds.pairs,
+            num_users=ds.num_users,
+            rank=rank,
+            lr=args.lr,
+            weight_decay=best_rank_wd,
+            epochs=epochs,
+            batch_size=train_bs,
+            seed=args.seed,
+            device=device,
+            mean_centered_prior=use_mean_centered,
+            shared_weight_decay=args.shared_weight_decay,
+        )
+        _, full_m = evaluate_margins(full_model, feats, ds.pairs, device)
+        with torch.no_grad():
+            raw_scores = full_model.score_all_users(feats.to(device)).cpu().numpy()
+        u_norm, beta_nat, s_min, s_max = global_affine_normalize(raw_scores)
+        het = compute_heterogeneity_stats(u_norm, ds, eval_prompt_indices)
 
-        assert best_rank_row is not None and best_rank_ckpt is not None
+        best_rank_row["full_loss"] = full_m["loss"]
+        best_rank_row["full_acc"] = full_m["acc"]
+        best_rank_row["beta_bt_nat"] = beta_nat
+        best_rank_row["mean_resp_user_std"] = het["mean_resp_user_std"]
+        best_rank_row["median_top1_majority_frac"] = het["median_top1_majority_frac"]
+
+        best_rank_ckpt = {
+            "state_dict": full_model.state_dict(),
+            "num_users": ds.num_users,
+            "hidden_dim": hidden_dim,
+            "rank": rank,
+            "prior": args.prior,
+            "shared_weight_decay": args.shared_weight_decay,
+            "weight_decay": best_rank_wd,
+            "beta_bt_nat": beta_nat,
+            "s_min": s_min,
+            "s_max": s_max,
+        }
+        if best_rank_row["val_loss"] < overall_best_val_loss:
+            overall_best_val_loss = best_rank_row["val_loss"]
+            overall_best = {
+                "rank": rank,
+                "weight_decay": best_rank_wd,
+                "ckpt": best_rank_ckpt,
+                "u_norm": u_norm,
+                "beta_nat": beta_nat,
+                "het": het,
+                "val_margins": best_rank_val_margins,
+            }
+
         torch.save(best_rank_ckpt, out_dir / f"user_bt_rank{rank}_best.pt")
         best_per_family_rows.append(best_rank_row)
         print(
-            f"  UserBT (d={rank}, best wd={best_rank_row['weight_decay']:g}): "
+            f"  UserBT (d={rank}, prior={args.prior}, wd_s={args.shared_weight_decay:g}, best wd_u={best_rank_row['weight_decay']:g}): "
             f"train_acc={best_rank_row['train_acc']:.4f}, full_acc={best_rank_row['full_acc']:.4f}, "
             f"val_acc={best_rank_row['val_acc']:.4f}, val_loss={best_rank_row['val_loss']:.4f}, "
             f"val_brier={best_rank_row['val_brier']:.4f}, beta_nat={best_rank_row['beta_bt_nat']:.2f}, "
-            f"med_top1_maj={best_rank_row['median_top1_majority_frac']:.2f}"
+            f"med_top1_maj={best_rank_row['median_top1_majority_frac']:.2f}",
+            flush=True,
         )
 
     torch.save(overall_best["ckpt"], out_dir / "user_bt_best.pt")
+
+    # Paired click-level statistical test: best UserBT vs. best Shared MLP on held-out clicks
+    pluralism_test: dict[str, float] = {}
+    if len(val_pairs) > 0:
+        from scipy import stats
+
+        u_m = overall_best["val_margins"]
+        m_m = best_mlp_val_margins
+        u_loss = np.logaddexp(0.0, -u_m)
+        m_loss = np.logaddexp(0.0, -m_m)
+        u_acc = (u_m > 0).astype(np.float64)
+        m_acc = (m_m > 0).astype(np.float64)
+
+        click_to_idxs: defaultdict[tuple[int, int], list[int]] = defaultdict(list)
+        for i, p in enumerate(val_pairs):
+            click_to_idxs[(p[0], p[1])].append(i)
+        d_loss_clicks = np.array([float(np.mean(u_loss[idxs] - m_loss[idxs])) for idxs in click_to_idxs.values()])
+        d_acc_clicks = np.array([float(np.mean(u_acc[idxs] - m_acc[idxs])) for idxs in click_to_idxs.values()])
+        t_loss, p_loss = stats.ttest_1samp(d_loss_clicks, 0.0)
+        t_acc, p_acc = stats.ttest_1samp(d_acc_clicks, 0.0)
+        pluralism_test = {
+            "num_val_clicks": int(len(d_loss_clicks)),
+            "delta_val_loss_vs_mlp": float(np.mean(d_loss_clicks)),
+            "t_stat_loss": float(t_loss),
+            "p_value_loss": float(p_loss),
+            "delta_val_acc_vs_mlp": float(np.mean(d_acc_clicks)),
+            "t_stat_acc": float(t_acc),
+            "p_value_acc": float(p_acc),
+        }
+        print(
+            f"\nPaired click-level test (UserBT d={overall_best['rank']} vs. Shared MLP, n={len(d_loss_clicks):,} clicks): "
+            f"delta_acc={pluralism_test['delta_val_acc_vs_mlp']:+.4f} (t={t_acc:+.2f}, p={p_acc:.2e}), "
+            f"delta_loss={pluralism_test['delta_val_loss_vs_mlp']:+.4f} (t={t_loss:+.2f}, p={p_loss:.2e})",
+            flush=True,
+        )
 
     all_df = pd.DataFrame(all_rows)
     best_df = pd.DataFrame(best_per_family_rows)
@@ -587,6 +647,8 @@ def main() -> None:
                 "mode": args.mode,
                 "device": str(device),
                 "split_strategy": "click_grouped_per_user",
+                "prior": args.prior,
+                "shared_weight_decay": args.shared_weight_decay,
                 "num_users": ds.num_users,
                 "num_prompts": ds.num_prompts,
                 "num_eval_prompts": len(eval_prompt_indices),
@@ -600,6 +662,7 @@ def main() -> None:
                 "best_beta_bt_nat": overall_best["beta_nat"],
                 "best_mythical_weight_decay": best_myth_row["weight_decay"],
                 "best_mythical_mlp_weight_decay": best_mlp_row["weight_decay"],
+                "pluralism_paired_click_test_vs_mlp": pluralism_test,
                 "elapsed_seconds": round(time.perf_counter() - t0, 2),
                 "best_per_family": best_per_family_rows,
             },

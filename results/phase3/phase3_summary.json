@@ -2,6 +2,8 @@
   "mode": "full",
   "device": "cpu",
   "split_strategy": "click_grouped_per_user",
+  "prior": "mean-centered",
+  "shared_weight_decay": 0.1,
   "num_users": 839,
   "num_prompts": 8719,
   "num_eval_prompts": 520,
@@ -11,11 +13,20 @@
   "num_val_clicks": 5277,
   "mlp_hidden": 8,
   "best_rank": 8,
-  "best_weight_decay": 5.0,
-  "best_beta_bt_nat": 12.306682586669922,
+  "best_weight_decay": 20.0,
+  "best_beta_bt_nat": 16.64363431930542,
   "best_mythical_weight_decay": 0.1,
   "best_mythical_mlp_weight_decay": 0.1,
-  "elapsed_seconds": 267.8,
+  "pluralism_paired_click_test_vs_mlp": {
+    "num_val_clicks": 5277,
+    "delta_val_loss_vs_mlp": -0.014270221623980976,
+    "t_stat_loss": -6.160798157802033,
+    "p_value_loss": 7.774241541204087e-10,
+    "delta_val_acc_vs_mlp": 0.009517192007243172,
+    "t_stat_acc": 2.989929738065167,
+    "p_value_acc": 0.002803296125785639
+  },
+  "elapsed_seconds": 194.51,
   "best_per_family": [
     {
       "model": "Shared Linear (768->1)",
@@ -50,17 +61,17 @@
     {
       "model": "UserBT (d=8)",
       "rank": 8,
-      "weight_decay": 5.0,
-      "full_loss": 0.6074952483177185,
-      "full_acc": 0.657564640045166,
-      "train_loss": 0.600264847278595,
-      "train_acc": 0.6687005162239075,
-      "val_loss": 0.6314837336540222,
-      "val_acc": 0.6175379157066345,
-      "val_brier": 0.2217770218849182,
-      "beta_bt_nat": 12.306682586669922,
-      "mean_resp_user_std": 0.04432145489884109,
-      "median_top1_majority_frac": 0.5852205005959475
+      "weight_decay": 20.0,
+      "full_loss": 0.5698258876800537,
+      "full_acc": 0.6905815601348877,
+      "train_loss": 0.5543232560157776,
+      "train_acc": 0.7049002051353455,
+      "val_loss": 0.6006264090538025,
+      "val_acc": 0.6563502550125122,
+      "val_brier": 0.20824500918388367,
+      "beta_bt_nat": 16.64363431930542,
+      "mean_resp_user_std": 0.03985134577338984,
+      "median_top1_majority_frac": 0.8247914183551848
     }
   ]
 }
