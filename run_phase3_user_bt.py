@@ -26,7 +26,7 @@ import torch.nn.functional as F
 
 from src.data import Turn1Dataset, extract_local_fixture_csv, load_turn1_dataset
 from src.encoder import FrozenModernBERTEncoder
-from src.mythical_bt import MythicalUserBT, fit_mythical_bt
+from src.mythical_bt import MythicalUserBT, MythicalUserMLPBT, fit_mythical_bt, fit_mythical_mlp_bt
 from src.user_bt import LowRankUserBT, fit_user_bt, global_affine_normalize
 
 
@@ -39,30 +39,38 @@ def split_pairs_per_user(
     val_frac: float = 0.2,
     seed: int = 42,
 ) -> tuple[list[tuple[int, int, int, int]], list[tuple[int, int, int, int]]]:
-    """Stratified per-user train/val split for generalization & regularization diagnostics."""
+    """Stratified per-user, click-grouped train/val split (zero within-click leakage).
+
+    Every 4-way annotator choice on `(user_idx, prompt_idx)` expands into up to 3 pairwise
+    comparisons sharing the same chosen response. Grouping by `(user_idx, prompt_idx)` keeps
+    all pairs from a given click together so `val` contains strictly unseen clicks.
+    """
     rng = np.random.default_rng(seed)
-    by_user: defaultdict[int, list[tuple[int, int, int, int]]] = defaultdict(list)
+    by_user_prompt: defaultdict[int, defaultdict[int, list[tuple[int, int, int, int]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for p in pairs:
-        by_user[p[0]].append(p)
+        by_user_prompt[p[0]][p[1]].append(p)
 
     train_pairs: list[tuple[int, int, int, int]] = []
     val_pairs: list[tuple[int, int, int, int]] = []
-    for u_idx in sorted(by_user.keys()):
-        u_list = by_user[u_idx]
-        perm = rng.permutation(len(u_list))
-        n_val = max(1, int(round(len(u_list) * val_frac))) if len(u_list) >= 5 else 0
-        val_set = set(perm[:n_val].tolist())
-        for i, item in enumerate(u_list):
-            if i in val_set:
-                val_pairs.append(item)
+    for u_idx in sorted(by_user_prompt.keys()):
+        p_keys = sorted(by_user_prompt[u_idx].keys())
+        n_clicks = len(p_keys)
+        perm = rng.permutation(n_clicks)
+        n_val_clicks = max(1, int(round(n_clicks * val_frac))) if n_clicks >= 2 else 0
+        val_p_set = {p_keys[i] for i in perm[:n_val_clicks].tolist()}
+        for p_idx in p_keys:
+            if p_idx in val_p_set:
+                val_pairs.extend(by_user_prompt[u_idx][p_idx])
             else:
-                train_pairs.append(item)
+                train_pairs.extend(by_user_prompt[u_idx][p_idx])
     return train_pairs, val_pairs
 
 
 @torch.no_grad()
 def evaluate_margins(
-    model: LowRankUserBT | MythicalUserBT,
+    model: LowRankUserBT | MythicalUserBT | MythicalUserMLPBT,
     features_xy: torch.Tensor,
     pairs: list[tuple[int, int, int, int]],
     device: torch.device,
@@ -238,8 +246,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV)
     parser.add_argument("--out-dir", type=Path, default=None)
     parser.add_argument("--device", type=str, default="auto")
-    parser.add_argument("--ranks", type=int, nargs="+", default=None, help="Defaults to [2, 8, 32] locally and [2, 8, 32, 64, 128] in full mode.")
-    parser.add_argument("--weight-decays", type=float, nargs="+", default=[1e-3, 1e-2, 1e-1, 1.0])
+    parser.add_argument("--ranks", type=int, nargs="+", default=None, help="Defaults to [2, 8] locally and [8] in full mode.")
+    parser.add_argument("--mlp-hidden", type=int, default=8, help="Hidden bottleneck width for Shared MLP diagnostic (hidden_dim -> h -> 1).")
+    parser.add_argument("--weight-decays", type=float, nargs="+", default=[0.01, 0.1, 1.0, 5.0, 10.0, 20.0])
+    parser.add_argument(
+        "--prior",
+        choices=["mean-centered", "zero-centered"],
+        default="mean-centered",
+        help="Hierarchical prior for UserBT: mean-centered shrinks delta_i = w_i - w_bar; zero-centered shrinks w_i -> 0.",
+    )
+    parser.add_argument(
+        "--shared-weight-decay",
+        type=float,
+        default=0.1,
+        help="Weight decay on shared projection W and population mean w_bar under mean-centered prior.",
+    )
     parser.add_argument("--min-user-prefs-gt", type=int, default=20)
     parser.add_argument("--eval-min-users", type=int, default=20)
     parser.add_argument("--max-length", type=int, default=512)
@@ -266,7 +287,7 @@ def main() -> None:
 
     # 1. Load Turn-1 dataset
     if args.mode == "local-test":
-        ranks = args.ranks if args.ranks is not None else [2, 8, 32]
+        ranks = args.ranks if args.ranks is not None else [2, 8]
         fixture_csv = out_dir / "local_fixture_en.csv"
         if not fixture_csv.exists():
             extract_local_fixture_csv(args.csv, fixture_csv, num_prompts=6, max_users=16)
@@ -278,7 +299,7 @@ def main() -> None:
         train_bs = min(args.batch_size, 128)
         mode_label = f"Local CPU Slice: {ds.num_users} users, {ds.num_prompts} prompts, {ds.num_pairs} pairs"
     else:
-        ranks = args.ranks if args.ranks is not None else [2, 8, 32, 64, 128]
+        ranks = args.ranks if args.ranks is not None else [8]
         ds = load_turn1_dataset(args.csv, min_user_prefs_gt=args.min_user_prefs_gt)
         eval_prompt_indices = ds.prompts_with_min_users(args.eval_min_users)
         max_len = args.max_length
@@ -290,7 +311,7 @@ def main() -> None:
     print(f"=== Phase 3 ({args.mode}) on device={device} ===")
     print(f"Users={ds.num_users:,}, Prompts={ds.num_prompts:,}, Eval prompts={len(eval_prompt_indices):,}")
     print(f"Unique (x, y)={ds.num_unique_xy:,}, Pairwise pairs={ds.num_pairs:,}")
-    print(f"Sweeping ranks={ranks} x weight_decays={args.weight_decays}")
+    print(f"Sweeping ranks={ranks}, mlp_hidden={args.mlp_hidden}, weight_decays={args.weight_decays}")
 
     # 2. Frozen ModernBERT CLS features (load from cache if already computed!)
     cache_path = None if args.no_cache else (out_dir / "modernbert_cls_features.pt")
@@ -318,12 +339,20 @@ def main() -> None:
             torch.cuda.empty_cache()
 
     train_pairs, val_pairs = split_pairs_per_user(ds.pairs, val_frac=0.2, seed=args.seed)
-    print(f"Diagnostic split: train_pairs={len(train_pairs):,}, val_pairs={len(val_pairs):,}\n")
+    train_clicks = {(p[0], p[1]) for p in train_pairs}
+    val_clicks = {(p[0], p[1]) for p in val_pairs}
+    assert len(train_clicks & val_clicks) == 0, "Click leakage detected between train and val splits!"
+    print(
+        f"Click-grouped split (0 overlap): "
+        f"train={len(train_pairs):,} pairs ({len(train_clicks):,} clicks), "
+        f"val={len(val_pairs):,} pairs ({len(val_clicks):,} unseen clicks)\n"
+    )
 
     all_rows = []
     best_per_family_rows = []
 
-    # 3A. Shared mythical-user baseline across weight_decays
+    # 3A-1. Shared mythical-user LINEAR baseline (hidden_dim -> 1) across weight_decays
+    hidden_dim = int(feats.shape[1])
     best_myth_row = None
     best_myth_state = None
     for wd in args.weight_decays:
@@ -339,7 +368,7 @@ def main() -> None:
         _, myth_val_m = evaluate_margins(myth_tr, feats, val_pairs, device)
 
         row = {
-            "model": "Shared (Mythical)",
+            "model": f"Shared Linear ({hidden_dim}->1)",
             "rank": 0,
             "weight_decay": wd,
             "full_loss": myth_full_m["loss"],
@@ -356,14 +385,80 @@ def main() -> None:
         all_rows.append(row)
         if best_myth_row is None or row["val_loss"] < best_myth_row["val_loss"]:
             best_myth_row = row
-            best_myth_state = {"state_dict": myth_full.state_dict(), "hidden_dim": int(feats.shape[1]), "weight_decay": wd}
+            best_myth_state = {"state_dict": myth_full.state_dict(), "hidden_dim": hidden_dim, "weight_decay": wd}
 
     assert best_myth_row is not None and best_myth_state is not None
     torch.save(best_myth_state, out_dir / "mythical_bt_best.pt")
     best_per_family_rows.append(best_myth_row)
     print(
-        f"  Shared (best wd={best_myth_row['weight_decay']:g}): "
-        f"full_acc={best_myth_row['full_acc']:.3f}, val_acc={best_myth_row['val_acc']:.3f}, val_loss={best_myth_row['val_loss']:.3f}"
+        f"  Shared Linear ({hidden_dim}->1, best wd={best_myth_row['weight_decay']:g}): "
+        f"train_acc={best_myth_row['train_acc']:.4f}, full_acc={best_myth_row['full_acc']:.4f}, "
+        f"val_acc={best_myth_row['val_acc']:.4f}, val_loss={best_myth_row['val_loss']:.4f}, val_brier={best_myth_row['val_brier']:.4f}"
+    )
+
+    # 3A-2. Shared mythical-user MLP baseline (hidden_dim -> mlp_hidden -> 1) across weight_decays
+    best_mlp_row = None
+    best_mlp_state = None
+    for wd in args.weight_decays:
+        mlp_full, _ = fit_mythical_mlp_bt(
+            feats,
+            ds.pairs,
+            bottleneck_dim=args.mlp_hidden,
+            lr=args.lr,
+            weight_decay=wd,
+            epochs=epochs,
+            batch_size=train_bs,
+            seed=args.seed,
+            device=device,
+        )
+        _, mlp_full_m = evaluate_margins(mlp_full, feats, ds.pairs, device)
+
+        mlp_tr, _ = fit_mythical_mlp_bt(
+            feats,
+            train_pairs,
+            bottleneck_dim=args.mlp_hidden,
+            lr=args.lr,
+            weight_decay=wd,
+            epochs=epochs,
+            batch_size=train_bs,
+            seed=args.seed,
+            device=device,
+        )
+        _, mlp_tr_m = evaluate_margins(mlp_tr, feats, train_pairs, device)
+        _, mlp_val_m = evaluate_margins(mlp_tr, feats, val_pairs, device)
+
+        row = {
+            "model": f"Shared MLP ({hidden_dim}->{args.mlp_hidden}->1)",
+            "rank": 0,
+            "weight_decay": wd,
+            "full_loss": mlp_full_m["loss"],
+            "full_acc": mlp_full_m["acc"],
+            "train_loss": mlp_tr_m["loss"],
+            "train_acc": mlp_tr_m["acc"],
+            "val_loss": mlp_val_m["loss"],
+            "val_acc": mlp_val_m["acc"],
+            "val_brier": mlp_val_m["brier"],
+            "beta_bt_nat": float("nan"),
+            "mean_resp_user_std": 0.0,
+            "median_top1_majority_frac": 1.0,
+        }
+        all_rows.append(row)
+        if best_mlp_row is None or row["val_loss"] < best_mlp_row["val_loss"]:
+            best_mlp_row = row
+            best_mlp_state = {
+                "state_dict": mlp_full.state_dict(),
+                "hidden_dim": hidden_dim,
+                "bottleneck_dim": args.mlp_hidden,
+                "weight_decay": wd,
+            }
+
+    assert best_mlp_row is not None and best_mlp_state is not None
+    torch.save(best_mlp_state, out_dir / "mythical_mlp_bt_best.pt")
+    best_per_family_rows.append(best_mlp_row)
+    print(
+        f"  Shared MLP ({hidden_dim}->{args.mlp_hidden}->1, best wd={best_mlp_row['weight_decay']:g}): "
+        f"train_acc={best_mlp_row['train_acc']:.4f}, full_acc={best_mlp_row['full_acc']:.4f}, "
+        f"val_acc={best_mlp_row['val_acc']:.4f}, val_loss={best_mlp_row['val_loss']:.4f}, val_brier={best_mlp_row['val_brier']:.4f}"
     )
 
     # 3B. User-wise low-rank BT models across ranks x weight_decays
@@ -429,7 +524,7 @@ def main() -> None:
             ckpt = {
                 "state_dict": full_model.state_dict(),
                 "num_users": ds.num_users,
-                "hidden_dim": int(feats.shape[1]),
+                "hidden_dim": hidden_dim,
                 "rank": rank,
                 "weight_decay": wd,
                 "beta_bt_nat": beta_nat,
@@ -456,9 +551,10 @@ def main() -> None:
         torch.save(best_rank_ckpt, out_dir / f"user_bt_rank{rank}_best.pt")
         best_per_family_rows.append(best_rank_row)
         print(
-            f"  Rank {rank:>2} (best wd={best_rank_row['weight_decay']:g}): "
-            f"full_acc={best_rank_row['full_acc']:.3f}, val_acc={best_rank_row['val_acc']:.3f}, "
-            f"val_loss={best_rank_row['val_loss']:.3f}, beta_nat={best_rank_row['beta_bt_nat']:.2f}, "
+            f"  UserBT (d={rank}, best wd={best_rank_row['weight_decay']:g}): "
+            f"train_acc={best_rank_row['train_acc']:.4f}, full_acc={best_rank_row['full_acc']:.4f}, "
+            f"val_acc={best_rank_row['val_acc']:.4f}, val_loss={best_rank_row['val_loss']:.4f}, "
+            f"val_brier={best_rank_row['val_brier']:.4f}, beta_nat={best_rank_row['beta_bt_nat']:.2f}, "
             f"med_top1_maj={best_rank_row['median_top1_majority_frac']:.2f}"
         )
 
@@ -469,7 +565,7 @@ def main() -> None:
     all_df.to_csv(out_dir / "phase3_metrics_full_grid.csv", index=False)
     best_df.to_csv(out_dir / "phase3_metrics.csv", index=False)
 
-    print("\n=== Phase 3 Best-per-Rank Summary ===")
+    print("\n=== Phase 3 Best-per-Family Summary ===")
     print(best_df.round(4).to_string(index=False))
 
     fig_path = plot_phase3_diagnostics(
@@ -490,15 +586,20 @@ def main() -> None:
             {
                 "mode": args.mode,
                 "device": str(device),
+                "split_strategy": "click_grouped_per_user",
                 "num_users": ds.num_users,
                 "num_prompts": ds.num_prompts,
                 "num_eval_prompts": len(eval_prompt_indices),
                 "num_unique_xy": ds.num_unique_xy,
                 "num_pairs": ds.num_pairs,
+                "num_train_clicks": len(train_clicks),
+                "num_val_clicks": len(val_clicks),
+                "mlp_hidden": args.mlp_hidden,
                 "best_rank": overall_best["rank"],
                 "best_weight_decay": overall_best["weight_decay"],
                 "best_beta_bt_nat": overall_best["beta_nat"],
                 "best_mythical_weight_decay": best_myth_row["weight_decay"],
+                "best_mythical_mlp_weight_decay": best_mlp_row["weight_decay"],
                 "elapsed_seconds": round(time.perf_counter() - t0, 2),
                 "best_per_family": best_per_family_rows,
             },

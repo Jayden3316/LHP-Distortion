@@ -95,15 +95,41 @@ def fit_user_bt(
     batch_size: int = 1024,
     seed: int = 42,
     device: str | torch.device = "cpu",
+    mean_centered_prior: bool = True,
+    shared_weight_decay: float | None = None,
 ) -> tuple[LowRankUserBT, BTTrainHistory]:
-    """Train LowRankUserBT on pairwise comparisons using precomputed frozen features."""
+    """Train LowRankUserBT on pairwise comparisons using precomputed frozen features.
+
+    When `mean_centered_prior=True` (default), parameterizes each user's weight vector as
+        w_i = w_bar + delta_i
+    with hierarchical regularization: `shared_weight_decay` (defaults to `min(weight_decay, 0.1)`)
+    on the shared projection `W` and population mean `w_bar`, and `weight_decay` on individual
+    deviations `delta_i`. After training, `w_bar + delta_i` is folded back into
+    `model.user_emb.weight` so the returned `LowRankUserBT` keeps the exact bilinear form
+    `s_i(x, y) = <w_i, W psi(x, y)>` and unchanged state_dict.
+    """
     torch.manual_seed(seed)
     dev = torch.device(device)
     feats = features_xy.to(dev, dtype=torch.float32)
     hidden_dim = int(feats.shape[1])
 
     model = LowRankUserBT(num_users=num_users, hidden_dim=hidden_dim, rank=rank).to(dev)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    if mean_centered_prior:
+        w_mean = nn.Parameter(torch.empty(rank, device=dev, dtype=torch.float32))
+        nn.init.normal_(w_mean, mean=0.0, std=0.1)
+        nn.init.zeros_(model.user_emb.weight)
+        eff_shared_wd = min(weight_decay, 0.1) if shared_weight_decay is None else shared_weight_decay
+        optimizer = torch.optim.AdamW(
+            [
+                {"params": [model.proj.weight, w_mean], "weight_decay": eff_shared_wd},
+                {"params": [model.user_emb.weight], "weight_decay": weight_decay},
+            ],
+            lr=lr,
+        )
+    else:
+        w_mean = None
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     u_arr = torch.tensor([p[0] for p in pairs], dtype=torch.long, device=dev)
     pos_arr = torch.tensor([p[2] for p in pairs], dtype=torch.long, device=dev)
@@ -127,7 +153,12 @@ def fit_user_bt(
             f_neg = feats[neg_arr[idx]]
 
             optimizer.zero_grad()
-            margins = model.forward_pairs(u_b, f_pos, f_neg)
+            if w_mean is not None:
+                w_u = w_mean + model.user_emb(u_b)
+                phi_diff = model.proj(f_pos) - model.proj(f_neg)
+                margins = (w_u * phi_diff).sum(dim=-1)
+            else:
+                margins = model.forward_pairs(u_b, f_pos, f_neg)
             loss = bt_pairwise_loss(margins)
             loss.backward()
             optimizer.step()
@@ -138,6 +169,10 @@ def fit_user_bt(
 
         losses.append(total_loss / n_pairs)
         accs.append(total_correct / n_pairs)
+
+    if w_mean is not None:
+        with torch.no_grad():
+            model.user_emb.weight.add_(w_mean.unsqueeze(0))
 
     model.eval()
     return model, BTTrainHistory(losses=losses, accuracies=accs)

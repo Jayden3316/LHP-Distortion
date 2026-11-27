@@ -12,7 +12,7 @@ from src.user_bt import BTTrainHistory, bt_pairwise_loss
 
 
 class MythicalUserBT(nn.Module):
-    """Single shared Bradley-Terry reward model r_MLE(x, y) = <theta, psi(x, y)>."""
+    """Single shared linear Bradley-Terry reward model r_MLE(x, y) = <theta, psi(x, y)>."""
 
     def __init__(self, hidden_dim: int) -> None:
         super().__init__()
@@ -24,6 +24,28 @@ class MythicalUserBT(nn.Module):
 
     def score(self, feat_xy: torch.Tensor) -> torch.Tensor:
         return self.reward_head(feat_xy).squeeze(-1)
+
+    def forward_pairs(self, feat_pos: torch.Tensor, feat_neg: torch.Tensor) -> torch.Tensor:
+        return self.score(feat_pos) - self.score(feat_neg)
+
+
+class MythicalUserMLPBT(nn.Module):
+    """Single shared 2-layer MLP Bradley-Terry reward model: hidden_dim -> bottleneck_dim -> 1."""
+
+    def __init__(self, hidden_dim: int, bottleneck_dim: int = 8) -> None:
+        super().__init__()
+        if hidden_dim <= 0 or bottleneck_dim <= 0:
+            raise ValueError("hidden_dim and bottleneck_dim must be positive.")
+        self.hidden_dim = hidden_dim
+        self.bottleneck_dim = bottleneck_dim
+        self.fc1 = nn.Linear(hidden_dim, bottleneck_dim, bias=True)
+        self.fc2 = nn.Linear(bottleneck_dim, 1, bias=False)
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.xavier_uniform_(self.fc2.weight)
+
+    def score(self, feat_xy: torch.Tensor) -> torch.Tensor:
+        return self.fc2(F.gelu(self.fc1(feat_xy))).squeeze(-1)
 
     def forward_pairs(self, feat_pos: torch.Tensor, feat_neg: torch.Tensor) -> torch.Tensor:
         return self.score(feat_pos) - self.score(feat_neg)
@@ -44,6 +66,56 @@ def fit_mythical_bt(
     dev = torch.device(device)
     feats = features_xy.to(dev, dtype=torch.float32)
     model = MythicalUserBT(hidden_dim=int(feats.shape[1])).to(dev)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    pos_arr = torch.tensor([p[2] for p in pairs], dtype=torch.long, device=dev)
+    neg_arr = torch.tensor([p[3] for p in pairs], dtype=torch.long, device=dev)
+    n_pairs = len(pairs)
+
+    gen = torch.Generator(device="cpu").manual_seed(seed)
+    losses: list[float] = []
+    accs: list[float] = []
+
+    for _ in range(epochs):
+        model.train()
+        perm = torch.randperm(n_pairs, generator=gen).to(dev)
+        total_loss = 0.0
+        total_correct = 0
+        for start in range(0, n_pairs, batch_size):
+            idx = perm[start : start + batch_size]
+            optimizer.zero_grad()
+            margins = model.forward_pairs(feats[pos_arr[idx]], feats[neg_arr[idx]])
+            loss = bt_pairwise_loss(margins)
+            loss.backward()
+            optimizer.step()
+
+            bs = int(idx.numel())
+            total_loss += float(loss.item()) * bs
+            total_correct += int((margins.detach() > 0).sum().item())
+
+        losses.append(total_loss / n_pairs)
+        accs.append(total_correct / n_pairs)
+
+    model.eval()
+    return model, BTTrainHistory(losses=losses, accuracies=accs)
+
+
+def fit_mythical_mlp_bt(
+    features_xy: torch.Tensor,
+    pairs: list[tuple[int, int, int, int]],
+    bottleneck_dim: int = 8,
+    lr: float = 1e-2,
+    weight_decay: float = 1e-3,
+    epochs: int = 100,
+    batch_size: int = 1024,
+    seed: int = 42,
+    device: str | torch.device = "cpu",
+) -> tuple[MythicalUserMLPBT, BTTrainHistory]:
+    """Fit single shared 2-layer MLP Bradley-Terry reward model over frozen features."""
+    torch.manual_seed(seed)
+    dev = torch.device(device)
+    feats = features_xy.to(dev, dtype=torch.float32)
+    model = MythicalUserMLPBT(hidden_dim=int(feats.shape[1]), bottleneck_dim=bottleneck_dim).to(dev)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     pos_arr = torch.tensor([p[2] for p in pairs], dtype=torch.long, device=dev)

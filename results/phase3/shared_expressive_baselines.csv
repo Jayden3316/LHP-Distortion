@@ -1,0 +1,7 @@
+model,params,weight_decay,dropout,best_epoch,train_loss,train_acc,val_loss,val_acc,val_brier
+Shared MLP (drop=0.1),460800,0.001,0.1,25,0.5538,0.713,0.589,0.6784,0.2022
+Shared MLP (drop=0.2),460800,0.1,0.2,25,0.5672,0.7004,0.5923,0.6752,0.2039
+Shared MLP (drop=0.3),460800,1.0,0.3,25,0.5892,0.6803,0.6039,0.6662,0.209
+Shared Tabular BT (no encoder),45797,0.01,0.0,80,0.2809,0.8622,0.3551,0.8252,0.1118
+Shared Tabular BT (no encoder),45797,0.1,0.0,80,0.2983,0.8621,0.395,0.8258,0.1201
+Shared Tabular BT (no encoder),45797,1.0,0.0,74,0.4966,0.862,0.5606,0.8261,0.1862

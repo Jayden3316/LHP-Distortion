@@ -13,13 +13,14 @@ To avoid overloading $\beta$ (which denotes the Bradley–Terry inverse temperat
 | Symbol | Meaning |
 | :--- | :--- |
 | $x$ | Input prompt / query |
-| $\mathcal{A}(x)$ | Finite set of candidate responses $y$ for query $x$ |
+| $\mathcal{A}(x)$ | Finite set of $m = |\mathcal{A}(x)|$ candidate responses $y$ for query $x$ |
 | $\psi(x, y) \in \mathbb{R}^{768}$ | Frozen `answerdotai/ModernBERT-base` CLS embedding of `(x, y)` |
-| $\phi(x, y) = W\psi(x, y) \in \mathbb{R}^d$ | Prompt–response embedding in learned user-preference space ($W \in \mathbb{R}^{d \times 768}$) |
-| $w_i \in \mathbb{R}^d$ | Low-rank preference embedding for user $i \in \{1, \dots, N\}$ ($N = 839$) |
-| $\tilde{u}_i(y \mid x) \in [0, 1]$ | Per-query BT-preserving normalized cardinal utility of user $i$ for response $y$ |
+| $\phi(x, y) = W\psi(x, y) \in \mathbb{R}^d$ | Prompt–response embedding in learned user-preference space ($W \in \mathbb{R}^{d \times 768}$, rank $d$) |
+| $w_i \in \mathbb{R}^d$ | Low-rank preference embedding for user $i \in \mathcal{D} = \{1, \dots, N\}$ ($N = 839$) |
+| $\tilde{u}_i(y \mid x) \in [0, 1]$ | Per-query BT-preserving normalized cardinal utility of user $i$ (equivalently scaled utility $0 \le \beta_{\mathrm{BT}} \tilde{u}_i(y \mid x) \le \beta_{\mathrm{BT}}$) |
 | $\mathrm{AvgUtil}(y \mid x)$ | Utilitarian social welfare: $\frac{1}{N} \sum_{i=1}^N \tilde{u}_i(y \mid x)$, extended to policies as $\mathbb{E}_{y \sim \pi(\cdot \mid x)}[\mathrm{AvgUtil}(y \mid x)]$ |
 | $\beta_{\mathrm{BT}} > 0$ | User-level Bradley–Terry inverse temperature: $P(y_1 \succ_i y_2 \mid x) = \sigma\!\big(\beta_{\mathrm{BT}}(\tilde{u}_i(y_1 \mid x) - \tilde{u}_i(y_2 \mid x))\big)$ |
+| $\mathcal{P}$ | Pooled pairwise preference dataset ($|\mathcal{P}| = 79{,}323$ deduplicated pairs; $K > 20$ Turn-1 choices/user) |
 | $\lambda > 0$ (or $\beta_{\mathrm{DPO}}$) | KL-regularization strength in RLHF (Phase 4A) / DPO (`trl.DPOConfig.beta`, Phase 4B) |
 | $\pi_{\mathrm{ref}}(\cdot \mid x)$ | Reference policy distribution over $\mathcal{A}(x)$ from base LLM completion log-probs |
 | $\tau(x)$ | Realized KL radius for policy $\pi$ on query $x$: $\tau(x) := D_{\mathrm{KL}}\!\big(\pi(\cdot \mid x) \,\|\, \pi_{\mathrm{ref}}(\cdot \mid x)\big)$ |
