@@ -247,7 +247,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", type=Path, default=None)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--ranks", type=int, nargs="+", default=None, help="Defaults to [2, 8] locally and [8] in full mode.")
-    parser.add_argument("--mlp-hidden", type=int, default=8, help="Hidden bottleneck width for Shared MLP diagnostic (hidden_dim -> h -> 1).")
+    parser.add_argument("--mlp-hidden", type=int, default=16, help="Hidden bottleneck width for Shared MLP diagnostic (hidden_dim -> h -> 1).")
     parser.add_argument("--weight-decays", type=float, nargs="+", default=[0.01, 0.1, 1.0, 5.0, 10.0, 20.0])
     parser.add_argument(
         "--prior",

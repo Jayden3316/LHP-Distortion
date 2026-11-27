@@ -11,7 +11,7 @@
   "num_pairs": 79323,
   "num_train_clicks": 21076,
   "num_val_clicks": 5277,
-  "mlp_hidden": 8,
+  "mlp_hidden": 16,
   "best_rank": 8,
   "best_weight_decay": 20.0,
   "best_beta_bt_nat": 16.64363431930542,
@@ -19,14 +19,14 @@
   "best_mythical_mlp_weight_decay": 0.1,
   "pluralism_paired_click_test_vs_mlp": {
     "num_val_clicks": 5277,
-    "delta_val_loss_vs_mlp": -0.014270221623980976,
-    "t_stat_loss": -6.160798157802033,
-    "p_value_loss": 7.774241541204087e-10,
-    "delta_val_acc_vs_mlp": 0.009517192007243172,
-    "t_stat_acc": 2.989929738065167,
-    "p_value_acc": 0.002803296125785639
+    "delta_val_loss_vs_mlp": -0.01389858191891329,
+    "t_stat_loss": -6.105448276186469,
+    "p_value_loss": 1.0983732096320205e-09,
+    "delta_val_acc_vs_mlp": 0.008664434758806561,
+    "t_stat_acc": 2.76906074315928,
+    "p_value_acc": 0.005641455586443492
   },
-  "elapsed_seconds": 194.51,
+  "elapsed_seconds": 337.42,
   "best_per_family": [
     {
       "model": "Shared Linear (768->1)",
@@ -44,16 +44,16 @@
       "median_top1_majority_frac": 1.0
     },
     {
-      "model": "Shared MLP (768->8->1)",
+      "model": "Shared MLP (768->16->1)",
       "rank": 0,
       "weight_decay": 0.1,
-      "full_loss": 0.6007722020149231,
-      "full_acc": 0.6678391098976135,
-      "train_loss": 0.6008474826812744,
-      "train_acc": 0.6685901880264282,
-      "val_loss": 0.6148897409439087,
-      "val_acc": 0.646914541721344,
-      "val_brier": 0.2137187123298645,
+      "full_loss": 0.6009761095046997,
+      "full_acc": 0.6680281758308411,
+      "train_loss": 0.600347638130188,
+      "train_acc": 0.6686217188835144,
+      "val_loss": 0.6145190000534058,
+      "val_acc": 0.6476693749427795,
+      "val_brier": 0.21361961960792542,
       "beta_bt_nat": NaN,
       "mean_resp_user_std": 0.0,
       "median_top1_majority_frac": 1.0
