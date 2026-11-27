@@ -1,0 +1,175 @@
+=== Phase 4B DPO Qualitative & Cross-Metric Report (ref_mode=llm_len_norm) ===
+
+--- Part 1: Top-5 Highest Distortion Prompts ---
+------------------------------------------------------------------------------------------------
+[High-Dist #1] | prompt_idx=7978 | dist=1.175, tau=0.0639 | pair_acc=0.638, pair_nll=0.656, spearman_emp=+0.25
+Prompt (32 annotators, |A(x)|=18):
+  Write a six-word story about a time-traveling architect who goes back to ancient Egypt.
+  * cand#0   [TOP pi_DPO, TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.604 (std=0.095) | EmpWinRate=0.250 | len=10 tok
+      pi_ref=0.1632 -> pi_DPO=0.1938 vs pi*=0.2497
+      Text: Ancient Egypt's grandeur inspires modern innovations.
+  * cand#10  [MAX AvgUtil]
+      AvgUtil=0.684 (std=0.094) | EmpWinRate=0.875 | len=8 tok
+      pi_ref=0.0189 -> pi_DPO=0.0200 vs pi*=0.0335
+      Text: Precision craftsmanship revives lost ancient techniques.
+  * cand#6   [TOP Empirical WinRate]
+      AvgUtil=0.580 (std=0.081) | EmpWinRate=0.875 | len=10 tok
+      pi_ref=0.0483 -> pi_DPO=0.0503 vs pi*=0.0707
+      Text: Innovative spirit revives ancient majestic structures.
+------------------------------------------------------------------------------------------------
+[High-Dist #2] | prompt_idx=1982 | dist=1.154, tau=0.0136 | pair_acc=0.619, pair_nll=0.682, spearman_emp=+1.00
+Prompt (28 annotators, |A(x)|=4):
+  How do I deal with tasks that are dependent on others' input
+  * cand#2   [TOP pi_DPO, TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate, TOP pi_ref]
+      AvgUtil=0.333 (std=0.217) | EmpWinRate=0.718 | len=106 tok
+      pi_ref=0.3057 -> pi_DPO=0.3233 vs pi*=0.3807
+      Text: To deal with tasks dependent on others' input, try the following:  1. **Communicate clearly**: Specify what you need and by when. 2. **Set deadlines**: Establish a timeline for receiving input. 3. **Follow up**: Politely check in on the status of the input. 4....
+------------------------------------------------------------------------------------------------
+[High-Dist #3] | prompt_idx=7206 | dist=1.145, tau=0.0346 | pair_acc=0.783, pair_nll=0.510, spearman_emp=+0.54
+Prompt (23 annotators, |A(x)|=8):
+  What's a great way to style a patterned shirt for a more unique look?
+  * cand#0   [TOP pi_DPO]
+      AvgUtil=0.241 (std=0.123) | EmpWinRate=0.777 | len=61 tok
+      pi_ref=0.1612 -> pi_DPO=0.2344 vs pi*=0.1486
+      Text: Embracing boldness, pair the patterned shirt with contrasting, solid-colored pants or a skirt to create a striking visual effect. Add some textured accessories like a woven belt or a patterned scarf to enhance the overall aesthetic. This eclectic mix of patter...
+  * cand#4   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.654 (std=0.083) | EmpWinRate=0.529 | len=60 tok
+      pi_ref=0.1941 -> pi_DPO=0.1995 vs pi*=0.2915
+      Text: For a more understated yet distinctive look, consider layering the patterned shirt under a solid-colored blazer or cardigan. This approach tones down the boldness of the pattern while still showcasing its unique design. Pair it with neutral-colored bottoms and...
+  * cand#5   [TOP Empirical WinRate]
+      AvgUtil=0.091 (std=0.076) | EmpWinRate=0.875 | len=58 tok
+      pi_ref=0.1081 -> pi_DPO=0.1201 vs pi*=0.0834
+      Text: Incorporating vintage elements can elevate the patterned shirt into a distinctive fashion statement. Pair it with high-waisted, fitted trousers and add accessories like a classic watch, a fedora hat, or brogue shoes to create a timeless, sophisticated look tha...
+------------------------------------------------------------------------------------------------
+[High-Dist #4] | prompt_idx=6879 | dist=1.124, tau=0.0259 | pair_acc=0.800, pair_nll=0.475, spearman_emp=+0.49
+Prompt (25 annotators, |A(x)|=8):
+  What is the purpose of fairy tales and mythology in modern society?
+  * cand#1   [TOP pi_DPO]
+      AvgUtil=0.126 (std=0.048) | EmpWinRate=0.802 | len=94 tok
+      pi_ref=0.1291 -> pi_DPO=0.1850 vs pi*=0.1056
+      Text: Fairy tales and mythology serve as a window into the collective human experience, offering insights into universal desires, fears, and values that transcend time and culture. They provide a shared cultural heritage, allowing people to connect with one another ...
+  * cand#4   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.375 (std=0.140) | EmpWinRate=0.250 | len=242 tok
+      pi_ref=0.1675 -> pi_DPO=0.1576 vs pi*=0.2168
+      Text: The purpose of fairy tales and mythology in modern society is multifaceted. These ancient stories continue to captivate audiences, offering timeless wisdom, moral lessons, and cultural heritage. They serve as a window into the past, providing insight into the ...
+  * cand#5   [TOP Empirical WinRate]
+      AvgUtil=0.345 (std=0.132) | EmpWinRate=0.875 | len=231 tok
+      pi_ref=0.1569 -> pi_DPO=0.1742 vs pi*=0.1924
+      Text: The purpose of fairy tales and mythology in modern society is multifaceted. These stories continue to captivate audiences, serving as a means of cultural preservation, social commentary, and personal reflection. They provide a window into the past, offering in...
+------------------------------------------------------------------------------------------------
+[High-Dist #5] | prompt_idx=7599 | dist=1.120, tau=0.0312 | pair_acc=0.867, pair_nll=0.314, spearman_emp=+0.53
+Prompt (30 annotators, |A(x)|=12):
+  Who was the lead singer of the rock band 'Queen'?
+  * cand#10  [TOP pi_DPO, TOP pi_ref]
+      AvgUtil=0.205 (std=0.034) | EmpWinRate=0.817 | len=71 tok
+      pi_ref=0.1376 -> pi_DPO=0.1857 vs pi*=0.1244
+      Text: The lead singer of the rock band 'Queen' was Freddie Mercury, known for his powerful and distinctive voice, as well as his energetic stage presence. He was a key figure in the band's success, and his vocals on songs like 'Bohemian Rhapsody' and 'We Will Rock Y...
+  * cand#8   [TOP pi* (KL-ball opt)]
+      AvgUtil=0.560 (std=0.123) | EmpWinRate=0.875 | len=253 tok
+      pi_ref=0.1061 -> pi_DPO=0.1220 vs pi*=0.1428
+      Text: The lead singer of the legendary rock band 'Queen' was Freddie Mercury (1946-1991). Born Farrokh Bulsara, Mercury was a British singer, songwriter, and record producer. He was known for his powerful and distinctive voice, impressive vocal range, and energetic ...
+  * cand#7   [MAX AvgUtil]
+      AvgUtil=0.563 (std=0.121) | EmpWinRate=0.250 | len=248 tok
+      pi_ref=0.0959 -> pi_DPO=0.0997 vs pi*=0.1295
+      Text: The lead singer of the iconic rock band 'Queen' was Freddie Mercury (1946-1991). Born Farrokh Bulsara, Mercury was a British singer, songwriter, and record producer. He was known for his powerful and wide-ranging voice, impressive stage presence, and flamboyan...
+  * cand#4   [TOP Empirical WinRate]
+      AvgUtil=0.027 (std=0.032) | EmpWinRate=0.875 | len=53 tok
+      pi_ref=0.0467 -> pi_DPO=0.0470 vs pi*=0.0346
+      Text: In answering who the lead singer of 'Queen' was, one cannot overlook the enduring legacy of Freddie Mercury. His tenure with the band resulted in some of the most recognizable and beloved songs in rock history, solidifying his place as an iconic figure within ...
+
+--- Part 2: High Distortion DESPITE High Pairwise Accuracy (>= 75%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #1] | prompt_idx=7206 | dist=1.145, tau=0.0346 | pair_acc=0.783, pair_nll=0.510, spearman_emp=+0.54
+Prompt (23 annotators, |A(x)|=8):
+  What's a great way to style a patterned shirt for a more unique look?
+  * cand#0   [TOP pi_DPO]
+      AvgUtil=0.241 (std=0.123) | EmpWinRate=0.777 | len=61 tok
+      pi_ref=0.1612 -> pi_DPO=0.2344 vs pi*=0.1486
+      Text: Embracing boldness, pair the patterned shirt with contrasting, solid-colored pants or a skirt to create a striking visual effect. Add some textured accessories like a woven belt or a patterned scarf to enhance the overall aesthetic. This eclectic mix of patter...
+  * cand#4   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.654 (std=0.083) | EmpWinRate=0.529 | len=60 tok
+      pi_ref=0.1941 -> pi_DPO=0.1995 vs pi*=0.2915
+      Text: For a more understated yet distinctive look, consider layering the patterned shirt under a solid-colored blazer or cardigan. This approach tones down the boldness of the pattern while still showcasing its unique design. Pair it with neutral-colored bottoms and...
+  * cand#5   [TOP Empirical WinRate]
+      AvgUtil=0.091 (std=0.076) | EmpWinRate=0.875 | len=58 tok
+      pi_ref=0.1081 -> pi_DPO=0.1201 vs pi*=0.0834
+      Text: Incorporating vintage elements can elevate the patterned shirt into a distinctive fashion statement. Pair it with high-waisted, fitted trousers and add accessories like a classic watch, a fedora hat, or brogue shoes to create a timeless, sophisticated look tha...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #2] | prompt_idx=6879 | dist=1.124, tau=0.0259 | pair_acc=0.800, pair_nll=0.475, spearman_emp=+0.49
+Prompt (25 annotators, |A(x)|=8):
+  What is the purpose of fairy tales and mythology in modern society?
+  * cand#1   [TOP pi_DPO]
+      AvgUtil=0.126 (std=0.048) | EmpWinRate=0.802 | len=94 tok
+      pi_ref=0.1291 -> pi_DPO=0.1850 vs pi*=0.1056
+      Text: Fairy tales and mythology serve as a window into the collective human experience, offering insights into universal desires, fears, and values that transcend time and culture. They provide a shared cultural heritage, allowing people to connect with one another ...
+  * cand#4   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.375 (std=0.140) | EmpWinRate=0.250 | len=242 tok
+      pi_ref=0.1675 -> pi_DPO=0.1576 vs pi*=0.2168
+      Text: The purpose of fairy tales and mythology in modern society is multifaceted. These ancient stories continue to captivate audiences, offering timeless wisdom, moral lessons, and cultural heritage. They serve as a window into the past, providing insight into the ...
+  * cand#5   [TOP Empirical WinRate]
+      AvgUtil=0.345 (std=0.132) | EmpWinRate=0.875 | len=231 tok
+      pi_ref=0.1569 -> pi_DPO=0.1742 vs pi*=0.1924
+      Text: The purpose of fairy tales and mythology in modern society is multifaceted. These stories continue to captivate audiences, serving as a means of cultural preservation, social commentary, and personal reflection. They provide a window into the past, offering in...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #3] | prompt_idx=7599 | dist=1.120, tau=0.0312 | pair_acc=0.867, pair_nll=0.314, spearman_emp=+0.53
+Prompt (30 annotators, |A(x)|=12):
+  Who was the lead singer of the rock band 'Queen'?
+  * cand#10  [TOP pi_DPO, TOP pi_ref]
+      AvgUtil=0.205 (std=0.034) | EmpWinRate=0.817 | len=71 tok
+      pi_ref=0.1376 -> pi_DPO=0.1857 vs pi*=0.1244
+      Text: The lead singer of the rock band 'Queen' was Freddie Mercury, known for his powerful and distinctive voice, as well as his energetic stage presence. He was a key figure in the band's success, and his vocals on songs like 'Bohemian Rhapsody' and 'We Will Rock Y...
+  * cand#8   [TOP pi* (KL-ball opt)]
+      AvgUtil=0.560 (std=0.123) | EmpWinRate=0.875 | len=253 tok
+      pi_ref=0.1061 -> pi_DPO=0.1220 vs pi*=0.1428
+      Text: The lead singer of the legendary rock band 'Queen' was Freddie Mercury (1946-1991). Born Farrokh Bulsara, Mercury was a British singer, songwriter, and record producer. He was known for his powerful and distinctive voice, impressive vocal range, and energetic ...
+  * cand#7   [MAX AvgUtil]
+      AvgUtil=0.563 (std=0.121) | EmpWinRate=0.250 | len=248 tok
+      pi_ref=0.0959 -> pi_DPO=0.0997 vs pi*=0.1295
+      Text: The lead singer of the iconic rock band 'Queen' was Freddie Mercury (1946-1991). Born Farrokh Bulsara, Mercury was a British singer, songwriter, and record producer. He was known for his powerful and wide-ranging voice, impressive stage presence, and flamboyan...
+  * cand#4   [TOP Empirical WinRate]
+      AvgUtil=0.027 (std=0.032) | EmpWinRate=0.875 | len=53 tok
+      pi_ref=0.0467 -> pi_DPO=0.0470 vs pi*=0.0346
+      Text: In answering who the lead singer of 'Queen' was, one cannot overlook the enduring legacy of Freddie Mercury. His tenure with the band resulted in some of the most recognizable and beloved songs in rock history, solidifying his place as an iconic figure within ...
+
+--- Part 3: Low Distortion DESPITE Poor Pairwise Accuracy (< 55%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #1] | prompt_idx=6177 | dist=1.010, tau=0.0022 | pair_acc=0.543, pair_nll=0.644, spearman_emp=+0.07
+Prompt (27 annotators, |A(x)|=16):
+  What are the must-visit temples in Mathura for a spiritual experience?
+  * cand#2   [TOP pi_DPO, TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.628 (std=0.111) | EmpWinRate=0.875 | len=265 tok
+      pi_ref=0.0732 -> pi_DPO=0.0817 vs pi*=0.0821
+      Text: Mathura, a city in Uttar Pradesh, India, is a significant pilgrimage site for Hindus, being the birthplace of Lord Krishna. For a spiritual experience, some must-visit temples in Mathura include:  1. **Krishna Janmabhoomi Temple**: The birthplace of Lord Krish...
+  * cand#9   [TOP pi_ref]
+      AvgUtil=0.270 (std=0.090) | EmpWinRate=0.250 | len=265 tok
+      pi_ref=0.0737 -> pi_DPO=0.0667 vs pi*=0.0693
+      Text: Mathura, a sacred city in India, is home to numerous temples that offer a profound spiritual experience. Some must-visit temples in Mathura include:  1. **Dwarkadheesh Temple**: A beautiful temple dedicated to Lord Krishna, it's a prominent pilgrimage site. 2....
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #2] | prompt_idx=3930 | dist=1.015, tau=0.0038 | pair_acc=0.530, pair_nll=0.724, spearman_emp=+0.05
+Prompt (39 annotators, |A(x)|=16):
+  I'm looking for an affordable drone, what are my options?
+  * cand#8   [TOP pi_DPO, TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.410 (std=0.145) | EmpWinRate=0.250 | len=279 tok
+      pi_ref=0.1099 -> pi_DPO=0.1170 vs pi*=0.1173
+      Text: If you're in the market for an affordable drone, there are several options to consider. Here are a few:  1. **Holy Stone HS100**: A budget-friendly drone with GPS and a 1080p camera, priced around $150. 2. **DJI Spark**: A compact, portable drone with a 12MP c...
+  * cand#14  [MAX AvgUtil]
+      AvgUtil=0.526 (std=0.152) | EmpWinRate=0.875 | len=291 tok
+      pi_ref=0.1015 -> pi_DPO=0.1095 vs pi*=0.1167
+      Text: You have several affordable drone options to choose from, depending on your needs and budget. Here are a few:  1. **Holy Stone HS100**: A budget-friendly drone with GPS, HD camera, and 15-minute flight time, priced around $150. 2. **DJI Spark**: A compact, por...
+  * cand#1   [TOP Empirical WinRate]
+      AvgUtil=0.152 (std=0.064) | EmpWinRate=0.875 | len=142 tok
+      pi_ref=0.0557 -> pi_DPO=0.0602 vs pi*=0.0503
+      Text: Affordable drones can be categorized based on their features and pricing. Entry-level options like the Syma X5C, available for under $50, provide a basic flying experience suitable for beginners. Mid-range drones such as the Ruko F11, priced around $200, offer...
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #3] | prompt_idx=1148 | dist=1.037, tau=0.0032 | pair_acc=0.540, pair_nll=0.663, spearman_emp=-0.63
+Prompt (29 annotators, |A(x)|=4):
+  Draft a heartfelt eulogy for our beloved office cat, who passed away after 15 years, sharing cherished memories and expressing gratitude for the love he brought to our work community.
+  * cand#3   [TOP pi_DPO, TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.567 (std=0.150) | EmpWinRate=0.489 | len=153 tok
+      pi_ref=0.2985 -> pi_DPO=0.3118 vs pi*=0.3265
+      Text: Today, we gather to celebrate the life of our beloved office cat, who brought joy and comfort to our workplace for 15 incredible years. His presence was a constant source of love and companionship, brightening even the most mundane days. We'll never forget his...
+  * cand#0   [TOP Empirical WinRate]
+      AvgUtil=0.469 (std=0.117) | EmpWinRate=0.676 | len=176 tok
+      pi_ref=0.1894 -> pi_DPO=0.1957 vs pi*=0.2008
+      Text: Our office cat may have started as just a pet, but he evolved into so much more—a mascot, a confidant, and a beloved member of our team. His 15 years with us were filled with laughter, adventure, and countless memories that we will treasure forever. He had a s...

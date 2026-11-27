@@ -1,0 +1,40 @@
+{
+  "mode": "full",
+  "checkpoint": "user_bt_best.pt",
+  "distortion_source": "phase4a_distortion_llm_len_norm_per_query.csv",
+  "dpo_model": "results/phase4b/checkpoints/obs_dpob0p05_s42",
+  "ref_model": "Qwen/Qwen3.5-0.8B",
+  "user_bt_rank": 8,
+  "num_eval_prompts": 520,
+  "n_high_queries": 10,
+  "n_low_queries": 10,
+  "num_dataset_responses_plotted": 211,
+  "k_generations": 4,
+  "pca_explained_variance_ratio": [
+    0.5301,
+    0.2702
+  ],
+  "centered_pca_explained_variance_ratio": [
+    0.5909,
+    0.2818
+  ],
+  "spearman_fragmentation_vs_distortion": {
+    "rho": -0.0214,
+    "p": 0.6263072590127547
+  },
+  "spearman_user_std_vs_distortion": {
+    "rho": 0.0682,
+    "p": 0.12049057490167783
+  },
+  "centroid_shifts": {
+    "high_distortion": {
+      "l2_centroid_shift_user_space": 28.4493,
+      "l2_centroid_shift_2d_pca": 27.3207
+    },
+    "low_distortion": {
+      "l2_centroid_shift_user_space": 38.4953,
+      "l2_centroid_shift_2d_pca": 37.9374
+    }
+  },
+  "elapsed_seconds": 301.77
+}

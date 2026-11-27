@@ -1,0 +1,195 @@
+=== Phase 4B DPO Qualitative & Cross-Metric Report (ref_mode=dpo_implicit_uniform) ===
+
+--- Part 1: Top-5 Highest Distortion Prompts ---
+------------------------------------------------------------------------------------------------
+[High-Dist #1] | prompt_idx=7022 | dist=49.757, tau=2.0611 | pair_acc=0.655, pair_nll=0.628, spearman_emp=+0.66
+Prompt (29 annotators, |A(x)|=8):
+  What role can a hospitality professional in the US play in disaster management and response efforts?
+  * cand#6   [TOP pi_DPO]
+      AvgUtil=0.012 (std=0.024) | EmpWinRate=0.585 | len=132 tok
+      pi_ref=0.1250 -> pi_DPO=0.9975 vs pi*=0.0000
+      Text: In the event of a disaster, hospitality professionals in the US can leverage their skills and resources to support response and recovery efforts in innovative and impactful ways. They can partner with emergency management agencies to develop and implement disa...
+  * cand#1   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.609 (std=0.130) | EmpWinRate=0.875 | len=252 tok
+      pi_ref=0.1250 -> pi_DPO=0.0003 vs pi*=0.9974
+      Text: A hospitality professional in the US can play a significant role in disaster management and response efforts. Hotels, restaurants, and other hospitality establishments often serve as temporary shelters, food providers, and communication hubs during disasters. ...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.048 (std=0.048) | EmpWinRate=0.271 | len=76 tok
+      pi_ref=0.1250 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: A hospitality professional in the US can play a crucial role in disaster management and response efforts by providing shelter, food, and emotional support to affected individuals. They can also assist with evacuation efforts, communicate with emergency service...
+------------------------------------------------------------------------------------------------
+[High-Dist #2] | prompt_idx=1982 | dist=42.688, tau=1.3863 | pair_acc=0.619, pair_nll=0.682, spearman_emp=+0.80
+Prompt (28 annotators, |A(x)|=4):
+  How do I deal with tasks that are dependent on others' input
+  * cand#3   [TOP pi_DPO]
+      AvgUtil=0.008 (std=0.030) | EmpWinRate=0.500 | len=94 tok
+      pi_ref=0.2500 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: When dealing with tasks that are dependent on others' input, adopting a flexible mindset is crucial. This involves being prepared for unforeseen delays and having contingency plans in place. It's also beneficial to empower team members by giving them the auton...
+  * cand#2   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.333 (std=0.217) | EmpWinRate=0.718 | len=106 tok
+      pi_ref=0.2500 -> pi_DPO=0.0000 vs pi*=1.0000
+      Text: To deal with tasks dependent on others' input, try the following:  1. **Communicate clearly**: Specify what you need and by when. 2. **Set deadlines**: Establish a timeline for receiving input. 3. **Follow up**: Politely check in on the status of the input. 4....
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.098 (std=0.047) | EmpWinRate=0.397 | len=81 tok
+      pi_ref=0.2500 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Dependent tasks can be a significant bottleneck in productivity. To mitigate this, it's essential to build strong relationships with your team members and stakeholders. By fostering an environment of trust and open communication, you can encourage proactive up...
+------------------------------------------------------------------------------------------------
+[High-Dist #3] | prompt_idx=1148 | dist=17.073, tau=1.2571 | pair_acc=0.540, pair_nll=0.663, spearman_emp=+0.32
+Prompt (29 annotators, |A(x)|=4):
+  Draft a heartfelt eulogy for our beloved office cat, who passed away after 15 years, sharing cherished memories and expressing gratitude for the love he brought to our work community.
+  * cand#2   [TOP pi_DPO]
+      AvgUtil=0.020 (std=0.037) | EmpWinRate=0.489 | len=163 tok
+      pi_ref=0.2500 -> pi_DPO=0.9756 vs pi*=0.0000
+      Text: The passing of our beloved office cat leaves an unfillable void in our work community. For 15 years, he was more than just a pet; he was a symbol of comfort, a reminder of joy, and a constant friend to everyone who walked through our doors. Memories of him lou...
+  * cand#3   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.567 (std=0.150) | EmpWinRate=0.489 | len=153 tok
+      pi_ref=0.2500 -> pi_DPO=0.0176 vs pi*=0.9716
+      Text: Today, we gather to celebrate the life of our beloved office cat, who brought joy and comfort to our workplace for 15 incredible years. His presence was a constant source of love and companionship, brightening even the most mundane days. We'll never forget his...
+  * cand#0   [TOP Empirical WinRate, TOP pi_ref]
+      AvgUtil=0.469 (std=0.117) | EmpWinRate=0.676 | len=176 tok
+      pi_ref=0.2500 -> pi_DPO=0.0068 vs pi*=0.0284
+      Text: Our office cat may have started as just a pet, but he evolved into so much more—a mascot, a confidant, and a beloved member of our team. His 15 years with us were filled with laughter, adventure, and countless memories that we will treasure forever. He had a s...
+------------------------------------------------------------------------------------------------
+[High-Dist #4] | prompt_idx=1772 | dist=16.123, tau=2.9871 | pair_acc=0.703, pair_nll=0.579, spearman_emp=+0.73
+Prompt (37 annotators, |A(x)|=20):
+  How can I travel from Recife to Olinda, and what should I see along the way?
+  * cand#4   [TOP pi_DPO, TOP Empirical WinRate]
+      AvgUtil=0.039 (std=0.044) | EmpWinRate=0.875 | len=135 tok
+      pi_ref=0.0500 -> pi_DPO=0.9990 vs pi*=0.0000
+      Text: Renting a car or scooter can be an excellent way to travel from Recife to Olinda, as it offers the freedom to explore at your own pace and stop at points of interest along the way. One noteworthy stop is the Instituto Ricardo Brennand, a museum situated in a p...
+  * cand#13  [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.642 (std=0.075) | EmpWinRate=0.875 | len=254 tok
+      pi_ref=0.0500 -> pi_DPO=0.0000 vs pi*=0.9989
+      Text: Traveling from Recife to Olinda is relatively easy and offers a glimpse into the rich cultural heritage of northeastern Brazil. The two cities are connected by a scenic coastal road, and the journey takes approximately 30-40 minutes by car or taxi. You can als...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.056 (std=0.052) | EmpWinRate=0.658 | len=132 tok
+      pi_ref=0.0500 -> pi_DPO=0.0002 vs pi*=0.0000
+      Text: For a more immersive experience traveling from Recife to Olinda, consider renting a car or scooter, which provides the flexibility to stop at interesting spots along the way. One such spot is the Instituto Ricardo Brennand, a museum located in a scenic area th...
+------------------------------------------------------------------------------------------------
+[High-Dist #5] | prompt_idx=4498 | dist=13.283, tau=2.7724 | pair_acc=0.731, pair_nll=0.480, spearman_emp=+0.44
+Prompt (26 annotators, |A(x)|=16):
+  Is it possible to separate personal beliefs from cultural conditioning?
+  * cand#15  [TOP pi_DPO]
+      AvgUtil=0.037 (std=0.052) | EmpWinRate=0.693 | len=50 tok
+      pi_ref=0.0625 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: Yes, it's possible to separate personal beliefs from cultural conditioning, but it requires self-reflection, critical thinking, and awareness of one's own biases and cultural influences. Recognizing and challenging cultural norms can help individuals form thei...
+  * cand#10  [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.495 (std=0.119) | EmpWinRate=0.250 | len=237 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=1.0000
+      Text: Separating personal beliefs from cultural conditioning can be a challenging and ongoing process. Cultural conditioning refers to the values, norms, and beliefs that are ingrained in us from a young age through our family, community, and society. These conditio...
+  * cand#2   [TOP Empirical WinRate]
+      AvgUtil=0.052 (std=0.049) | EmpWinRate=0.875 | len=81 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Embracing the complexities of cultural conditioning can actually enrich personal beliefs, rather than diminish them. By acknowledging and exploring the cultural narratives that have influenced their lives, individuals can gain a deeper understanding of themsel...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.039 (std=0.049) | EmpWinRate=0.250 | len=106 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Cultural conditioning is an indispensable part of human development, and attempting to separate personal beliefs from it is not only futile but also unnecessary. Cultural narratives provide a shared sense of identity, community, and belonging, which are essent...
+
+--- Part 2: High Distortion DESPITE High Pairwise Accuracy (>= 75%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #1] | prompt_idx=670 | dist=3.222, tau=1.3660 | pair_acc=0.813, pair_nll=0.332, spearman_emp=+0.95
+Prompt (25 annotators, |A(x)|=4):
+  Can you suggest some ways to declutter my workspace and improve focus
+  * cand#1   [TOP pi_DPO, TOP Empirical WinRate]
+      AvgUtil=0.175 (std=0.081) | EmpWinRate=0.730 | len=106 tok
+      pi_ref=0.2500 -> pi_DPO=0.9970 vs pi*=0.0021
+      Text: Prioritizing minimalism is key to a productive workspace. Start by removing all non-essential items from your desk and sorting them into categories. Be ruthless – if you haven't used it in the past month, it's probably safe to get rid of it. Consider implement...
+  * cand#3   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.570 (std=0.159) | EmpWinRate=0.730 | len=214 tok
+      pi_ref=0.2500 -> pi_DPO=0.0030 vs pi*=0.9973
+      Text: To declutter your workspace and improve focus, try these steps:  1. **Clear everything off**: Start with a blank slate by removing all items from your workspace. 2. **Sort items into categories**: Divide items into keep, donate, sell, and throw away piles. 3. ...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.079 (std=0.034) | EmpWinRate=0.125 | len=122 tok
+      pi_ref=0.2500 -> pi_DPO=0.0000 vs pi*=0.0005
+      Text: Embracing a more holistic approach to workspace organization can have a significant impact on productivity. Begin by assessing the energy of your workspace – consider the flow of traffic, the placement of furniture, and the overall aesthetic. Incorporate eleme...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #2] | prompt_idx=1774 | dist=3.138, tau=2.9178 | pair_acc=0.792, pair_nll=0.473, spearman_emp=+0.75
+Prompt (24 annotators, |A(x)|=28):
+  How can I utilize my multilingual skills as a financial analyst in a multinational company in Dubai?
+  * cand#21  [TOP pi_DPO]
+      AvgUtil=0.165 (std=0.046) | EmpWinRate=0.700 | len=148 tok
+      pi_ref=0.0357 -> pi_DPO=0.8676 vs pi*=0.0000
+      Text: The key to maximizing the value of your multilingual skills as a financial analyst in a multinational company in Dubai is to identify areas where language can add significant value. This could involve working closely with the company's international business d...
+  * cand#2   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.648 (std=0.107) | EmpWinRate=0.250 | len=227 tok
+      pi_ref=0.0357 -> pi_DPO=0.0000 vs pi*=0.9114
+      Text: As a multilingual financial analyst in a multinational company in Dubai, you can leverage your language skills to drive business growth and success. Here are some ways to utilize your skills:  * **Communicate with international clients**: With Dubai being a gl...
+  * cand#7   [TOP Empirical WinRate]
+      AvgUtil=0.459 (std=0.065) | EmpWinRate=0.875 | len=239 tok
+      pi_ref=0.0357 -> pi_DPO=0.1268 vs pi*=0.0028
+      Text: As a multilingual financial analyst in a multinational company in Dubai, you can leverage your language skills to drive business growth and success. Here are some ways to utilize your skills:  * Communicate with international clients and stakeholders in their ...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.121 (std=0.051) | EmpWinRate=0.250 | len=104 tok
+      pi_ref=0.0357 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: A crucial aspect of leveraging your language skills as a financial analyst in Dubai involves understanding the cultural nuances associated with each language. This comprehension allows you to tailor financial analysis and recommendations appropriately, conside...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #3] | prompt_idx=5123 | dist=3.126, tau=3.5777 | pair_acc=0.844, pair_nll=0.455, spearman_emp=+0.60
+Prompt (32 annotators, |A(x)|=40):
+  Recommend a sci-fi TV show that has received critical acclaim in the last 2 years.
+  * cand#11  [TOP pi_DPO]
+      AvgUtil=0.199 (std=0.028) | EmpWinRate=0.843 | len=67 tok
+      pi_ref=0.0250 -> pi_DPO=0.9772 vs pi*=0.0000
+      Text: For a compelling and thought-provoking watch, consider "Severance", a psychological sci-fi thriller that explores the consequences of a mysterious procedure that separates work memories from personal ones. With its unique premise, atmospheric tension, and stan...
+  * cand#25  [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.652 (std=0.088) | EmpWinRate=0.250 | len=259 tok
+      pi_ref=0.0250 -> pi_DPO=0.0001 vs pi*=0.9770
+      Text: I highly recommend the sci-fi TV show "Raised by Wolves" which premiered in 2020 on HBO Max. Created by Aaron Guzikowski and produced by Ridley Scott, the show has received widespread critical acclaim for its unique storytelling, stunning visuals, and thought-...
+  * cand#9   [TOP Empirical WinRate]
+      AvgUtil=0.213 (std=0.024) | EmpWinRate=0.875 | len=84 tok
+      pi_ref=0.0250 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Consider watching "Foundation", a sci-fi series based on Isaac Asimov's seminal work. It follows a mathematician who predicts the impending collapse of the Galactic Empire and sets out to gather a group of scientists to preserve human knowledge. Critics have p...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.188 (std=0.073) | EmpWinRate=0.250 | len=103 tok
+      pi_ref=0.0250 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: "Foundation" is a monumental and epic sci-fi series based on Isaac Asimov's classic novels, spanning centuries and galaxies as it tells the story of a mathematician who predicts the impending collapse of the Galactic Empire and sets out to preserve human knowl...
+
+--- Part 3: Low Distortion DESPITE Poor Pairwise Accuracy (< 55%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #1] | prompt_idx=3930 | dist=1.000, tau=2.7206 | pair_acc=0.530, pair_nll=0.724, spearman_emp=+0.25
+Prompt (39 annotators, |A(x)|=16):
+  I'm looking for an affordable drone, what are my options?
+  * cand#14  [TOP pi_DPO, TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.526 (std=0.152) | EmpWinRate=0.875 | len=291 tok
+      pi_ref=0.0625 -> pi_DPO=0.9910 vs pi*=0.9927
+      Text: You have several affordable drone options to choose from, depending on your needs and budget. Here are a few:  1. **Holy Stone HS100**: A budget-friendly drone with GPS, HD camera, and 15-minute flight time, priced around $150. 2. **DJI Spark**: A compact, por...
+  * cand#1   [TOP Empirical WinRate]
+      AvgUtil=0.152 (std=0.064) | EmpWinRate=0.875 | len=142 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Affordable drones can be categorized based on their features and pricing. Entry-level options like the Syma X5C, available for under $50, provide a basic flying experience suitable for beginners. Mid-range drones such as the Ruko F11, priced around $200, offer...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.161 (std=0.057) | EmpWinRate=0.500 | len=141 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Affordability in drones isn't just about the initial purchase price; consider the cost of replacement parts, batteries, and any additional features you might want. The Syma X5C is a very budget-friendly option, available for under $50, and while it lacks advan...
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #2] | prompt_idx=6177 | dist=1.217, tau=2.2469 | pair_acc=0.543, pair_nll=0.644, spearman_emp=+0.86
+Prompt (27 annotators, |A(x)|=16):
+  What are the must-visit temples in Mathura for a spiritual experience?
+  * cand#6   [TOP pi_DPO]
+      AvgUtil=0.485 (std=0.097) | EmpWinRate=0.875 | len=282 tok
+      pi_ref=0.0625 -> pi_DPO=0.8387 vs pi*=0.0143
+      Text: Mathura, a city in Uttar Pradesh, India, is a significant pilgrimage site for Hindus, being the birthplace of Lord Krishna. For a spiritual experience, some must-visit temples in Mathura include:  1. **Shri Krishna Janmabhoomi Temple**: The most revered temple...
+  * cand#2   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.628 (std=0.111) | EmpWinRate=0.875 | len=265 tok
+      pi_ref=0.0625 -> pi_DPO=0.1268 vs pi*=0.8787
+      Text: Mathura, a city in Uttar Pradesh, India, is a significant pilgrimage site for Hindus, being the birthplace of Lord Krishna. For a spiritual experience, some must-visit temples in Mathura include:  1. **Krishna Janmabhoomi Temple**: The birthplace of Lord Krish...
+  * cand#0   [TOP pi_ref]
+      AvgUtil=0.018 (std=0.055) | EmpWinRate=0.443 | len=130 tok
+      pi_ref=0.0625 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: For a deeply immersive spiritual experience in Mathura, one must explore the city's lesser-known temples, which often hold the most profound energies. The Jama Masjid, though not traditionally considered a temple, is a significant historical and spiritual land...
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #3] | prompt_idx=1148 | dist=17.073, tau=1.2571 | pair_acc=0.540, pair_nll=0.663, spearman_emp=+0.32
+Prompt (29 annotators, |A(x)|=4):
+  Draft a heartfelt eulogy for our beloved office cat, who passed away after 15 years, sharing cherished memories and expressing gratitude for the love he brought to our work community.
+  * cand#2   [TOP pi_DPO]
+      AvgUtil=0.020 (std=0.037) | EmpWinRate=0.489 | len=163 tok
+      pi_ref=0.2500 -> pi_DPO=0.9756 vs pi*=0.0000
+      Text: The passing of our beloved office cat leaves an unfillable void in our work community. For 15 years, he was more than just a pet; he was a symbol of comfort, a reminder of joy, and a constant friend to everyone who walked through our doors. Memories of him lou...
+  * cand#3   [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.567 (std=0.150) | EmpWinRate=0.489 | len=153 tok
+      pi_ref=0.2500 -> pi_DPO=0.0176 vs pi*=0.9716
+      Text: Today, we gather to celebrate the life of our beloved office cat, who brought joy and comfort to our workplace for 15 incredible years. His presence was a constant source of love and companionship, brightening even the most mundane days. We'll never forget his...
+  * cand#0   [TOP Empirical WinRate, TOP pi_ref]
+      AvgUtil=0.469 (std=0.117) | EmpWinRate=0.676 | len=176 tok
+      pi_ref=0.2500 -> pi_DPO=0.0068 vs pi*=0.0284
+      Text: Our office cat may have started as just a pet, but he evolved into so much more—a mascot, a confidant, and a beloved member of our team. His 15 years with us were filled with laughter, adventure, and countless memories that we will treasure forever. He had a s...

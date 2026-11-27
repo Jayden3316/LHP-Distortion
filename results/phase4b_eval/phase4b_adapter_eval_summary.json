@@ -1,0 +1,67 @@
+{
+  "mode": "full",
+  "llm": "Qwen/Qwen3.5-0.8B",
+  "user_bt_checkpoint": "user_bt_best.pt",
+  "norm_mode": "per-query",
+  "adapters": [
+    {
+      "adapter": "obs_dpob0p05_s42",
+      "dpo_beta": 0.05,
+      "num_eval_prompts": 520,
+      "num_eval_pairs": 51532,
+      "overall_pair_acc_implicit_reward": 0.7756,
+      "overall_pair_nll_implicit_reward": 0.4816,
+      "overall_pair_margin_implicit_reward": 0.9959,
+      "overall_pair_acc_raw_logp": 0.5803,
+      "overall_pair_acc_len_norm_logp": 0.6944,
+      "by_ref_mode": {
+        "llm": {
+          "median_tau": 0.0,
+          "p90_tau": 7.73214,
+          "median_distortion": 1.0,
+          "p90_distortion": 1.03769,
+          "max_distortion": 1118.82797,
+          "top1_changed_vs_ref_frac": 0.1827,
+          "top1_matches_emp_best_frac": 0.0538,
+          "top1_matches_util_opt_frac": 0.025,
+          "mean_spearman_vs_emp": 0.2114,
+          "mean_spearman_vs_avgutil": -0.4664,
+          "mean_top1_dpo_len": 77.8,
+          "mean_top1_ref_len": 76.0,
+          "mean_top1_emp_len": 180.4
+        },
+        "llm_len_norm": {
+          "median_tau": 0.00684,
+          "p90_tau": 0.01668,
+          "median_distortion": 1.0237,
+          "p90_distortion": 1.05127,
+          "max_distortion": 1.17525,
+          "top1_changed_vs_ref_frac": 0.4115,
+          "top1_matches_emp_best_frac": 0.1673,
+          "top1_matches_util_opt_frac": 0.2462,
+          "mean_spearman_vs_emp": 0.2601,
+          "mean_spearman_vs_avgutil": 0.6665,
+          "mean_top1_dpo_len": 229.7,
+          "mean_top1_ref_len": 231.7,
+          "mean_top1_emp_len": 180.4
+        },
+        "dpo_implicit_uniform": {
+          "median_tau": 2.7459,
+          "p90_tau": 3.39392,
+          "median_distortion": 1.11154,
+          "p90_distortion": 1.96614,
+          "max_distortion": 49.75724,
+          "top1_changed_vs_ref_frac": 0.9596,
+          "top1_matches_emp_best_frac": 0.2596,
+          "top1_matches_util_opt_frac": 0.225,
+          "mean_spearman_vs_emp": 0.5994,
+          "mean_spearman_vs_avgutil": 0.507,
+          "mean_top1_dpo_len": 220.6,
+          "mean_top1_ref_len": 129.5,
+          "mean_top1_emp_len": 180.4
+        }
+      }
+    }
+  ],
+  "elapsed_seconds": 172.4
+}

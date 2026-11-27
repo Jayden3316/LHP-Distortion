@@ -1,0 +1,191 @@
+=== Phase 4B DPO Qualitative & Cross-Metric Report (ref_mode=llm) ===
+
+--- Part 1: Top-5 Highest Distortion Prompts ---
+------------------------------------------------------------------------------------------------
+[High-Dist #1] | prompt_idx=3941 | dist=1118.828, tau=0.0976 | pair_acc=0.778, pair_nll=0.534, spearman_emp=+0.43
+Prompt (30 annotators, |A(x)|=16):
+  I'm looking for some unique shopping experiences in Curitiba, what are some recommendations?
+  * cand#1   [TOP pi_DPO, TOP pi* (KL-ball opt), TOP Empirical WinRate, TOP pi_ref]
+      AvgUtil=0.000 (std=0.000) | EmpWinRate=0.875 | len=68 tok
+      pi_ref=0.9056 -> pi_DPO=0.9998 vs pi*=0.7539
+      Text: Curitiba's emphasis on sustainability and community is evident in its shopping experiences. Many local businesses prioritize eco-friendliness and social responsibility, making it easy for consumers to make conscious choices. From artisanal markets showcasing h...
+  * cand#5   [MAX AvgUtil]
+      AvgUtil=0.792 (std=0.085) | EmpWinRate=0.875 | len=253 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Curitiba, a city in southern Brazil, offers a mix of traditional and modern shopping experiences. For a unique shopping experience, consider visiting the following places:  1. **Feira do Largo da Ordem**: This bustling market takes place every Sunday and featu...
+------------------------------------------------------------------------------------------------
+[High-Dist #2] | prompt_idx=1982 | dist=34.180, tau=20.7472 | pair_acc=0.619, pair_nll=0.682, spearman_emp=-0.40
+Prompt (28 annotators, |A(x)|=4):
+  How do I deal with tasks that are dependent on others' input
+  * cand#3   [TOP pi_DPO]
+      AvgUtil=0.008 (std=0.030) | EmpWinRate=0.500 | len=94 tok
+      pi_ref=0.0000 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: When dealing with tasks that are dependent on others' input, adopting a flexible mindset is crucial. This involves being prepared for unforeseen delays and having contingency plans in place. It's also beneficial to empower team members by giving them the auton...
+  * cand#2   [TOP pi* (KL-ball opt), MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.333 (std=0.217) | EmpWinRate=0.718 | len=106 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.7265
+      Text: To deal with tasks dependent on others' input, try the following:  1. **Communicate clearly**: Specify what you need and by when. 2. **Set deadlines**: Establish a timeline for receiving input. 3. **Follow up**: Politely check in on the status of the input. 4....
+  * cand#1   [TOP pi_ref]
+      AvgUtil=0.090 (std=0.053) | EmpWinRate=0.271 | len=76 tok
+      pi_ref=1.0000 -> pi_DPO=0.0000 vs pi*=0.2735
+      Text: Effective task management involves breaking down larger tasks into smaller, manageable chunks, and identifying which of these chunks are dependent on others' input. By prioritizing these dependent tasks and establishing clear lines of communication with the in...
+------------------------------------------------------------------------------------------------
+[High-Dist #3] | prompt_idx=5950 | dist=18.750, tau=9.5959 | pair_acc=0.833, pair_nll=0.431, spearman_emp=-0.04
+Prompt (34 annotators, |A(x)|=12):
+  What are the best local festivals to attend in the Northeast region?
+  * cand#0   [TOP pi_DPO]
+      AvgUtil=0.011 (std=0.024) | EmpWinRate=0.411 | len=97 tok
+      pi_ref=0.0001 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: Festivals in the Northeast are a great way to experience the unique character of each community. The Maine Lobster Festival is a standout event, with its delicious seafood and lively atmosphere. The Newport Jazz Festival in Rhode Island is another iconic event...
+  * cand#2   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.174 (std=0.085) | EmpWinRate=0.176 | len=104 tok
+      pi_ref=0.9999 -> pi_DPO=0.0000 vs pi*=0.9141
+      Text: The Northeast region is home to a diverse array of local festivals that celebrate music, food, and culture. One of the most popular festivals is the Lowell Folk Festival in Massachusetts, which showcases traditional music and dance from around the world. Anoth...
+  * cand#3   [MAX AvgUtil]
+      AvgUtil=0.604 (std=0.099) | EmpWinRate=0.250 | len=275 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: The Northeast region of the United States is home to a diverse range of exciting local festivals that showcase the area's rich culture, history, and natural beauty. Some of the best local festivals to attend in the Northeast include:  * The Maine Lobster Festi...
+  * cand#7   [TOP Empirical WinRate]
+      AvgUtil=0.597 (std=0.076) | EmpWinRate=0.875 | len=264 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: The Northeast region of the United States is home to a diverse range of exciting local festivals that showcase the area's rich culture, history, and natural beauty. Some of the best local festivals to attend in the Northeast include:  * The Maine Lobster Festi...
+------------------------------------------------------------------------------------------------
+[High-Dist #4] | prompt_idx=5756 | dist=14.614, tau=2.9395 | pair_acc=0.825, pair_nll=0.448, spearman_emp=+0.03
+Prompt (38 annotators, |A(x)|=24):
+  What are some outdoor activities to do at Acadia National Park in Maine?
+  * cand#23  [TOP pi_DPO]
+      AvgUtil=0.010 (std=0.031) | EmpWinRate=0.448 | len=65 tok
+      pi_ref=0.0529 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: Hike Cadillac Mountain, explore tide pools at Thunder Hole, bike the carriage roads, or kayak through Somes Sound. You can also go camping, rock climbing, or take a park ranger-led nature walk. Wildlife watching and photography are popular too, with moose, dee...
+  * cand#21  [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.129 (std=0.082) | EmpWinRate=0.097 | len=129 tok
+      pi_ref=0.9471 -> pi_DPO=0.0000 vs pi*=0.7665
+      Text: Acadia National Park is also a great destination for those who appreciate the natural beauty and tranquility of the outdoors. Visitors can take a leisurely drive on the Park Loop Road, which offers stunning views of the park's coastline and mountains. Photogra...
+  * cand#10  [MAX AvgUtil]
+      AvgUtil=0.758 (std=0.083) | EmpWinRate=0.875 | len=286 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Acadia National Park in Maine offers a wide range of outdoor activities for all interests and skill levels. Some popular activities include:  * Hiking: With over 120 miles of trails, Acadia offers something for every hiker, from easy strolls to challenging cli...
+  * cand#4   [TOP Empirical WinRate]
+      AvgUtil=0.604 (std=0.075) | EmpWinRate=0.875 | len=279 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Acadia National Park in Maine offers a wide range of outdoor activities for all interests and skill levels. Some popular activities include:  * Hiking: With over 120 miles of trails, Acadia offers something for every hiker, from easy strolls to challenging cli...
+------------------------------------------------------------------------------------------------
+[High-Dist #5] | prompt_idx=1468 | dist=9.851, tau=inf | pair_acc=0.826, pair_nll=0.411, spearman_emp=-0.07
+Prompt (23 annotators, |A(x)|=28):
+  Help generate some creative ideas for eco-friendly activism in a young adult novel.
+  * cand#21  [TOP pi_DPO]
+      AvgUtil=0.065 (std=0.038) | EmpWinRate=0.875 | len=92 tok
+      pi_ref=0.0000 -> pi_DPO=0.9998 vs pi*=0.0000
+      Text: The story could focus on a group of teenagers who discover that a local corporation is polluting their town's water supply. They decide to take matters into their own hands, using social media and other online platforms to expose the truth and mobilize their c...
+  * cand#24  [TOP pi* (KL-ball opt), MAX AvgUtil]
+      AvgUtil=0.641 (std=0.118) | EmpWinRate=0.250 | len=636 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=1.0000
+      Text: What a great project! Here are some creative ideas for eco-friendly activism that you could incorporate into your young adult novel:  **Protests and Demonstrations**  1. **Climate Strike**: Organize a school-wide climate strike, where students skip class to pr...
+  * cand#0   [TOP Empirical WinRate]
+      AvgUtil=0.107 (std=0.044) | EmpWinRate=0.875 | len=97 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: By incorporating elements of mystery and suspense, the story could revolve around a group of young adults who stumble upon an environmental scandal, such as a toxic waste dump or a corrupt corporation exploiting natural resources. As they dig deeper, they face...
+  * cand#3   [TOP pi_ref]
+      AvgUtil=0.070 (std=0.053) | EmpWinRate=0.028 | len=86 tok
+      pi_ref=0.9999 -> pi_DPO=0.0002 vs pi*=0.0000
+      Text: Eco-friendly activism in a young adult novel could involve a group of teenagers organizing a community clean-up event, where they not only pick up trash but also create art installations using recycled materials found during the clean-up. This event could spar...
+
+--- Part 2: High Distortion DESPITE High Pairwise Accuracy (>= 75%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #1] | prompt_idx=3941 | dist=1118.828, tau=0.0976 | pair_acc=0.778, pair_nll=0.534, spearman_emp=+0.43
+Prompt (30 annotators, |A(x)|=16):
+  I'm looking for some unique shopping experiences in Curitiba, what are some recommendations?
+  * cand#1   [TOP pi_DPO, TOP pi* (KL-ball opt), TOP Empirical WinRate, TOP pi_ref]
+      AvgUtil=0.000 (std=0.000) | EmpWinRate=0.875 | len=68 tok
+      pi_ref=0.9056 -> pi_DPO=0.9998 vs pi*=0.7539
+      Text: Curitiba's emphasis on sustainability and community is evident in its shopping experiences. Many local businesses prioritize eco-friendliness and social responsibility, making it easy for consumers to make conscious choices. From artisanal markets showcasing h...
+  * cand#5   [MAX AvgUtil]
+      AvgUtil=0.792 (std=0.085) | EmpWinRate=0.875 | len=253 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Curitiba, a city in southern Brazil, offers a mix of traditional and modern shopping experiences. For a unique shopping experience, consider visiting the following places:  1. **Feira do Largo da Ordem**: This bustling market takes place every Sunday and featu...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #2] | prompt_idx=5950 | dist=18.750, tau=9.5959 | pair_acc=0.833, pair_nll=0.431, spearman_emp=-0.04
+Prompt (34 annotators, |A(x)|=12):
+  What are the best local festivals to attend in the Northeast region?
+  * cand#0   [TOP pi_DPO]
+      AvgUtil=0.011 (std=0.024) | EmpWinRate=0.411 | len=97 tok
+      pi_ref=0.0001 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: Festivals in the Northeast are a great way to experience the unique character of each community. The Maine Lobster Festival is a standout event, with its delicious seafood and lively atmosphere. The Newport Jazz Festival in Rhode Island is another iconic event...
+  * cand#2   [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.174 (std=0.085) | EmpWinRate=0.176 | len=104 tok
+      pi_ref=0.9999 -> pi_DPO=0.0000 vs pi*=0.9141
+      Text: The Northeast region is home to a diverse array of local festivals that celebrate music, food, and culture. One of the most popular festivals is the Lowell Folk Festival in Massachusetts, which showcases traditional music and dance from around the world. Anoth...
+  * cand#3   [MAX AvgUtil]
+      AvgUtil=0.604 (std=0.099) | EmpWinRate=0.250 | len=275 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: The Northeast region of the United States is home to a diverse range of exciting local festivals that showcase the area's rich culture, history, and natural beauty. Some of the best local festivals to attend in the Northeast include:  * The Maine Lobster Festi...
+  * cand#7   [TOP Empirical WinRate]
+      AvgUtil=0.597 (std=0.076) | EmpWinRate=0.875 | len=264 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: The Northeast region of the United States is home to a diverse range of exciting local festivals that showcase the area's rich culture, history, and natural beauty. Some of the best local festivals to attend in the Northeast include:  * The Maine Lobster Festi...
+------------------------------------------------------------------------------------------------
+[Missed-by-Acc #3] | prompt_idx=5756 | dist=14.614, tau=2.9395 | pair_acc=0.825, pair_nll=0.448, spearman_emp=+0.03
+Prompt (38 annotators, |A(x)|=24):
+  What are some outdoor activities to do at Acadia National Park in Maine?
+  * cand#23  [TOP pi_DPO]
+      AvgUtil=0.010 (std=0.031) | EmpWinRate=0.448 | len=65 tok
+      pi_ref=0.0529 -> pi_DPO=1.0000 vs pi*=0.0000
+      Text: Hike Cadillac Mountain, explore tide pools at Thunder Hole, bike the carriage roads, or kayak through Somes Sound. You can also go camping, rock climbing, or take a park ranger-led nature walk. Wildlife watching and photography are popular too, with moose, dee...
+  * cand#21  [TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.129 (std=0.082) | EmpWinRate=0.097 | len=129 tok
+      pi_ref=0.9471 -> pi_DPO=0.0000 vs pi*=0.7665
+      Text: Acadia National Park is also a great destination for those who appreciate the natural beauty and tranquility of the outdoors. Visitors can take a leisurely drive on the Park Loop Road, which offers stunning views of the park's coastline and mountains. Photogra...
+  * cand#10  [MAX AvgUtil]
+      AvgUtil=0.758 (std=0.083) | EmpWinRate=0.875 | len=286 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Acadia National Park in Maine offers a wide range of outdoor activities for all interests and skill levels. Some popular activities include:  * Hiking: With over 120 miles of trails, Acadia offers something for every hiker, from easy strolls to challenging cli...
+  * cand#4   [TOP Empirical WinRate]
+      AvgUtil=0.604 (std=0.075) | EmpWinRate=0.875 | len=279 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Acadia National Park in Maine offers a wide range of outdoor activities for all interests and skill levels. Some popular activities include:  * Hiking: With over 120 miles of trails, Acadia offers something for every hiker, from easy strolls to challenging cli...
+
+--- Part 3: Low Distortion DESPITE Poor Pairwise Accuracy (< 55%) ---
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #1] | prompt_idx=1148 | dist=1.000, tau=0.0000 | pair_acc=0.540, pair_nll=0.663, spearman_emp=-0.32
+Prompt (29 annotators, |A(x)|=4):
+  Draft a heartfelt eulogy for our beloved office cat, who passed away after 15 years, sharing cherished memories and expressing gratitude for the love he brought to our work community.
+  * cand#3   [TOP pi_DPO, TOP pi* (KL-ball opt), MAX AvgUtil, TOP pi_ref]
+      AvgUtil=0.567 (std=0.150) | EmpWinRate=0.489 | len=153 tok
+      pi_ref=1.0000 -> pi_DPO=1.0000 vs pi*=1.0000
+      Text: Today, we gather to celebrate the life of our beloved office cat, who brought joy and comfort to our workplace for 15 incredible years. His presence was a constant source of love and companionship, brightening even the most mundane days. We'll never forget his...
+  * cand#0   [TOP Empirical WinRate]
+      AvgUtil=0.469 (std=0.117) | EmpWinRate=0.676 | len=176 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Our office cat may have started as just a pet, but he evolved into so much more—a mascot, a confidant, and a beloved member of our team. His 15 years with us were filled with laughter, adventure, and countless memories that we will treasure forever. He had a s...
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #2] | prompt_idx=3930 | dist=1.000, tau=1.9304 | pair_acc=0.530, pair_nll=0.724, spearman_emp=+0.40
+Prompt (39 annotators, |A(x)|=16):
+  I'm looking for an affordable drone, what are my options?
+  * cand#15  [TOP pi_DPO, TOP pi* (KL-ball opt)]
+      AvgUtil=0.372 (std=0.150) | EmpWinRate=0.568 | len=123 tok
+      pi_ref=0.1451 -> pi_DPO=1.0000 vs pi*=1.0000
+      Text: You have several affordable drone options:   1. Holy Stone HS100: GPS drone with camera, $150-$200. 2. DJI Mini SE: Portable, 3-axis gimbal, $300-$400. 3. Potensic T25: GPS drone with 2K camera, $150-$250. 4. Ryze Tello: Mini drone with 13MP camera, $100-$200....
+  * cand#14  [MAX AvgUtil]
+      AvgUtil=0.526 (std=0.152) | EmpWinRate=0.875 | len=291 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: You have several affordable drone options to choose from, depending on your needs and budget. Here are a few:  1. **Holy Stone HS100**: A budget-friendly drone with GPS, HD camera, and 15-minute flight time, priced around $150. 2. **DJI Spark**: A compact, por...
+  * cand#1   [TOP Empirical WinRate]
+      AvgUtil=0.152 (std=0.064) | EmpWinRate=0.875 | len=142 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Affordable drones can be categorized based on their features and pricing. Entry-level options like the Syma X5C, available for under $50, provide a basic flying experience suitable for beginners. Mid-range drones such as the Ruko F11, priced around $200, offer...
+  * cand#2   [TOP pi_ref]
+      AvgUtil=0.000 (std=0.002) | EmpWinRate=0.875 | len=102 tok
+      pi_ref=0.8549 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Considering the environmental impact is crucial when choosing an affordable drone. Opting for a model with energy-efficient motors and rechargeable batteries can significantly reduce waste. The Eachine E58, priced around $50, is a good option for eco-conscious...
+------------------------------------------------------------------------------------------------
+[Missed-by-Dist #3] | prompt_idx=6177 | dist=1.000, tau=0.0012 | pair_acc=0.543, pair_nll=0.644, spearman_emp=+0.40
+Prompt (27 annotators, |A(x)|=16):
+  What are the must-visit temples in Mathura for a spiritual experience?
+  * cand#1   [TOP pi_DPO, TOP pi* (KL-ball opt), TOP pi_ref]
+      AvgUtil=0.280 (std=0.220) | EmpWinRate=0.500 | len=119 tok
+      pi_ref=1.0000 -> pi_DPO=0.9998 vs pi*=1.0000
+      Text: Key temples in Mathura include:  1. **Dwarkadhish Temple**: Dedicated to Lord Krishna. 2. **Krishna Janmabhoomi Temple**: Birthplace of Lord Krishna. 3. **Banke Bihari Temple**: Famous for its enchanting idol and festivities. 4. **ISKCON Temple**: Part of the ...
+  * cand#2   [MAX AvgUtil, TOP Empirical WinRate]
+      AvgUtil=0.628 (std=0.111) | EmpWinRate=0.875 | len=265 tok
+      pi_ref=0.0000 -> pi_DPO=0.0000 vs pi*=0.0000
+      Text: Mathura, a city in Uttar Pradesh, India, is a significant pilgrimage site for Hindus, being the birthplace of Lord Krishna. For a spiritual experience, some must-visit temples in Mathura include:  1. **Krishna Janmabhoomi Temple**: The birthplace of Lord Krish...
